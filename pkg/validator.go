@@ -3,6 +3,7 @@ package ima
 import (
 	"fmt"
 	"github.com/modern-go/reflect2"
+	"io"
 )
 
 type Validator struct {
@@ -84,19 +85,22 @@ func (v *Validator) MeasurementListAttestation(expected []byte) error {
 
 		err = v.Entry.ParseEntry(v.MeasurementList, v.Integrity.PcrIndex, v.Integrity.TemplateHashSize(), v.Integrity.FileHashSize())
 		if err != nil {
-			return fmt.Errorf("failed to parse entry: %v", err)
+			if err != io.EOF {
+				return fmt.Errorf("IMA measurement list attestation failed: %v", err)
+			}
+			break
 		}
 
 		if !reflect2.IsNil(v.Target) {
 			_, err = v.Target.CheckMatch(v.Entry)
 			if err != nil {
-				return fmt.Errorf("failed to match target: %v", err)
+				return fmt.Errorf("IMA measurement list attestation failed: %v", err)
 			}
 		}
 
 		err = v.Integrity.Extend(v.Entry.GetTemplateHash())
 		if err != nil {
-			return fmt.Errorf("failed to extend entry: %v", err)
+			return fmt.Errorf("IMA measurement list attestation failed: %v", err)
 		}
 		err = v.Integrity.Check(expected)
 		if err == nil {
@@ -104,4 +108,5 @@ func (v *Validator) MeasurementListAttestation(expected []byte) error {
 			return nil
 		}
 	}
+	return fmt.Errorf("IMA measurement list invalid: computed aggregate: %x does not match expected: %x", v.Integrity.aggregate, expected)
 }

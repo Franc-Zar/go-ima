@@ -200,14 +200,14 @@ func (ml *MeasurementList) ReadAll() ([]byte, error) {
 }
 
 func (ml *MeasurementList) Read(n int) ([]byte, error) {
+	if n <= 0 {
+		return nil, fmt.Errorf("failed to read IMA measurement list: cannot read %d", n)
+	}
+
 	switch ml.Type {
 	case Raw:
-		mlLen := len(ml.raw)
-		if mlLen == 0 {
+		if ml.ptr+int64(n) > int64(len(ml.raw)) {
 			return nil, io.EOF
-		}
-		if mlLen < n {
-			return nil, fmt.Errorf("failed to read IMA measurement list: not enough data in raw measurement list")
 		}
 		buf := ml.raw[ml.ptr : ml.ptr+int64(n)]
 		ml.ptr += int64(n)

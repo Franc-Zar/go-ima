@@ -9,7 +9,7 @@ import (
 )
 
 func TestValidator_MeasurementListAttestation_raw(t *testing.T) {
-	f, err := os.Open("../../tests/bin_ima")
+	f, err := os.Open("../tests/bin_ima")
 	assert.NoError(t, err)
 	raw, err := io.ReadAll(f)
 	assert.NoError(t, err)
@@ -42,7 +42,7 @@ func TestValidator_MeasurementListAttestation_raw(t *testing.T) {
 func TestValidator_MeasurementListAttestation_file(t *testing.T) {
 	ml := &MeasurementList{
 		Type: File,
-		Path: "../../tests/bin_ima",
+		Path: "../tests/bin_ima",
 	}
 	err := ml.Open(0)
 	assert.NoError(t, err)
@@ -69,7 +69,7 @@ func TestValidator_MeasurementListAttestation_file(t *testing.T) {
 func TestValidator_MeasurementListAttestation_target(t *testing.T) {
 	ml := &MeasurementList{
 		Type: File,
-		Path: "../../tests/bin_ima",
+		Path: "../tests/bin_ima",
 	}
 	err := ml.Open(0)
 	assert.NoError(t, err)
@@ -102,7 +102,7 @@ func TestValidator_MeasurementListAttestation_target(t *testing.T) {
 func TestValidator_MeasurementListAttestation_ng(t *testing.T) {
 	ml := &MeasurementList{
 		Type: File,
-		Path: "../../tests/ima_ng",
+		Path: "../tests/ima_ng",
 	}
 	err := ml.Open(0)
 	assert.NoError(t, err)
@@ -127,7 +127,7 @@ func TestValidator_MeasurementListAttestation_ng(t *testing.T) {
 }
 
 func TestValidator_MeasurementListAttestation_cgpath_partialAttestation(t *testing.T) {
-	f, err := os.Open("../../tests/bin_ima")
+	f, err := os.Open("../tests/bin_ima")
 	assert.NoError(t, err)
 	raw, err := io.ReadAll(f)
 	assert.NoError(t, err)

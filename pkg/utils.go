@@ -105,6 +105,23 @@ func isValidFileHashAlgo(hashAlgo []byte) bool {
 	}
 }
 
+func FromHashAlgoString(hashAlgoString string) crypto.Hash {
+	switch hashAlgoString {
+	case "sha1":
+		return crypto.SHA1
+	case "sha256":
+		return crypto.SHA256
+	case "sha384":
+		return crypto.SHA384
+	case "sha512":
+		return crypto.SHA512
+	case "md5":
+		return crypto.MD5
+	default:
+		return crypto.Hash(0)
+	}
+}
+
 func toHashAlgoString(hash crypto.Hash) string {
 	switch hash {
 	case crypto.MD5:
