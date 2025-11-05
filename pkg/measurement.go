@@ -199,6 +199,24 @@ func (ml *MeasurementList) ReadAll() ([]byte, error) {
 	}
 }
 
+func (ml *MeasurementList) HasContent() (bool, error) {
+	switch ml.Type {
+	case Raw:
+		return ml.ptr < int64(len(ml.raw)), nil
+	case File:
+		if ml.file == nil {
+			return false, nil
+		}
+		info, err := ml.file.Stat()
+		if err != nil {
+			return false, fmt.Errorf("failed to stat IMA measurement list: %v", err)
+		}
+		return ml.ptr < info.Size(), nil
+	default:
+		return false, fmt.Errorf("invalid IMA measurement list type: %v", ml.Type)
+	}
+}
+
 func (ml *MeasurementList) Read(n int) ([]byte, error) {
 	if n <= 0 {
 		return nil, fmt.Errorf("failed to read IMA measurement list: cannot read %d", n)
