@@ -5,23 +5,24 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"github.com/franc-zar/go-ima/pkg/attestation"
+	"github.com/franc-zar/go-ima/pkg/measurement"
+	"github.com/franc-zar/go-ima/pkg/validator"
 	"os"
-
-	ima "github.com/franc-zar/go-ima/pkg"
 )
 
 func main() {
-	fs := flag.NewFlagSet("ima-validator", flag.ExitOnError)
+	fs := flag.NewFlagSet("ima-v", flag.ExitOnError)
 
-	path := fs.String("path", ima.DefaultBinaryPath, "Path to IMA measurement list file")
+	path := fs.String("path", measurement.DefaultBinaryPath, "Path to IMA measurement list file")
 	expected := fs.String("expected", "", "Expected aggregate digest (hex string)")
-	pcrIndex := fs.Int("pcr", 10, "PCR index to validate against")
+	pcrIndex := fs.Int("pcr", attestation.DefaultPCRIndex, "PCR index to validate against")
 	templateHash := fs.Int("templateHash", int(crypto.SHA256), "Template hash algorithm (crypto.Hash ID)")
 	fileHash := fs.Int("fileHash", int(crypto.SHA256), "File hash algorithm (crypto.Hash ID)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s --expected <digest> [options]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Options:\n")
+		fmt.Printf("Usage: %s --expected <digest> [options]\n", os.Args[0])
+		fmt.Printf("Options:\n")
 		fs.PrintDefaults()
 	}
 
@@ -31,25 +32,25 @@ func main() {
 
 	// --- Validate user input ---
 	if *expected == "" {
-		fmt.Fprintln(os.Stderr, "Error: missing required flag --expected")
+		fmt.Printf("Error: missing required flag --expected")
 		fs.Usage()
 		os.Exit(2)
 	}
 
 	digest, err := hex.DecodeString(*expected)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: invalid expected digest (must be hex): %v\n", err)
+		fmt.Printf("Error: invalid expected digest (must be hex): %v\n", err)
 		os.Exit(2)
 	}
 
-	ml := ima.NewMeasurementListFromFile(*path, 0)
+	ml := measurement.NewMeasurementListFromFile(*path, 0)
 	err = ml.Open(0)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: cannot read measurement list: %v\n", err)
+		fmt.Printf("Error: cannot read measurement list: %v\n", err)
 		os.Exit(1)
 	}
 
-	integrity, err := ima.NewIntegrity(
+	integrity, err := attestation.NewIntegrity(
 		uint32(*pcrIndex),
 		crypto.Hash(*templateHash),
 		crypto.Hash(*fileHash),
@@ -57,14 +58,14 @@ func main() {
 		0,
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: cannot create integrity context: %v\n", err)
+		fmt.Printf("Error: cannot create integrity context: %v\n", err)
 		os.Exit(1)
 	}
 
-	validator := ima.NewNgValidator(ml, integrity, nil)
+	v := validator.NewNgValidator(ml, integrity, nil)
 
-	if err = validator.MeasurementListAttestation(digest); err != nil {
-		fmt.Fprintf(os.Stderr, "[-] Attestation failed: %v\n", err)
+	if err = v.MeasurementListAttestation(digest); err != nil {
+		fmt.Printf("[-] Attestation failed: %v\n", err)
 		os.Exit(1)
 	}
 

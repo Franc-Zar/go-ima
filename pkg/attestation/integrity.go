@@ -6,22 +6,36 @@ import (
 	"fmt"
 )
 
+const DefaultPCRIndex = 10
+
 type Integrity struct {
 	attested  int64  // number of attested bytes of IMA measurement list bytes i.e. starting offset for next measurement list verification
 	aggregate []byte // cumulative hash of processed IMA measurements
-	tpm       *TPM
-	PcrIndex  uint32 // index of PCR reserved to store IMA measurements
+	TPM       *TPM
+	pcrIndex  uint32 // index of PCR reserved to store IMA measurements
 
 	TemplateHashAlgo crypto.Hash // hash algorithm used for template hash computation
 	FileHashAlgo     crypto.Hash // hash algorithm used for file hash computation
+}
+
+func (i *Integrity) GetAttested() int64 {
+	return i.attested
+}
+
+func (i *Integrity) GetAggregate() []byte {
+	return i.aggregate
+}
+
+func (i *Integrity) GetPCRIndex() uint32 {
+	return i.pcrIndex
 }
 
 func NewIntegrity(pcrIndex uint32, templateHashAlgo, fileHashAlgo crypto.Hash, tpm *TPM, attested int64) (*Integrity, error) {
 	i := &Integrity{
 		attested:         attested,
 		aggregate:        make([]byte, templateHashAlgo.Size()),
-		tpm:              tpm,
-		PcrIndex:         pcrIndex,
+		TPM:              tpm,
+		pcrIndex:         pcrIndex,
 		TemplateHashAlgo: templateHashAlgo,
 		FileHashAlgo:     fileHashAlgo,
 	}
@@ -47,7 +61,7 @@ func (i *Integrity) isFileHashAlgo() bool {
 }
 
 func (i *Integrity) IsValidPCRIndex() bool {
-	return i.PcrIndex >= MinPCRIndex && i.PcrIndex <= MaxPCRIndex
+	return i.pcrIndex >= MinPCRIndex && i.pcrIndex <= MaxPCRIndex
 }
 
 func (i *Integrity) IsValidHashConfig() bool {
@@ -95,19 +109,19 @@ func (i *Integrity) Check(expectedAggregate []byte) error {
 }
 
 func (i *Integrity) CheckFromPCR() error {
-	if i.tpm == nil {
+	if i.TPM == nil {
 		return fmt.Errorf("TPM is not initialized")
 	}
-	if !i.tpm.IsOpen() {
+	if !i.TPM.IsOpen() {
 		return fmt.Errorf("TPM is not open")
 	}
-	pcrs, err := i.tpm.ReadPCRs([]int{int(i.PcrIndex)}, i.TemplateHashAlgo)
+	pcrs, err := i.TPM.ReadPCRs([]int{int(i.pcrIndex)}, i.TemplateHashAlgo)
 	if err != nil {
-		return fmt.Errorf("failed to read PCR %d from TPM: %v", i.PcrIndex, err)
+		return fmt.Errorf("failed to read PCR %d from TPM: %v", i.pcrIndex, err)
 	}
-	expectedAggregate, ok := pcrs[i.PcrIndex]
+	expectedAggregate, ok := pcrs[i.pcrIndex]
 	if !ok {
-		return fmt.Errorf("PCR %d not found in TPM read result", i.PcrIndex)
+		return fmt.Errorf("PCR %d not found in TPM read result", i.pcrIndex)
 	}
 	return i.Check(expectedAggregate)
 }

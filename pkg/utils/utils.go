@@ -7,20 +7,22 @@ import (
 	"fmt"
 )
 
-const lenFieldSize = 4 // size of field containing length of variable-length fields
-const pcrSize = 4
+const ColonByte = byte(58) // ASCII code for ":"
+const NullByte = byte(0)
+const LenFieldSize = 4 // size of field containing length of variable-length fields
+const PcrSize = 4
 
-// parseFieldLen parses a length field from a byte buffer and returns the length as uint32.
-func parseFieldLen(field []byte) (uint32, error) {
+// ParseFieldLen parses a length field from a byte buffer and returns the length as uint32.
+func ParseFieldLen(field []byte) (uint32, error) {
 	fieldSize := len(field)
-	if fieldSize != lenFieldSize {
-		return 0, fmt.Errorf("invalid length field size: got %d, want %d", fieldSize, lenFieldSize)
+	if fieldSize != LenFieldSize {
+		return 0, fmt.Errorf("invalid length field size: got %d, want %d", fieldSize, LenFieldSize)
 	}
 	fieldLen := binary.LittleEndian.Uint32(field)
 	return fieldLen, nil
 }
 
-func packPath(path []byte) ([]byte, error) {
+func PackPath(path []byte) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	pathLen := uint32(len(path))
 	if err := binary.Write(buf, binary.LittleEndian, pathLen); err != nil {
@@ -38,7 +40,7 @@ func packPath(path []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func packHash(hash []byte) ([]byte, error) {
+func PackHash(hash []byte) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	hashLen := uint32(len(hash))
 	if err := binary.Write(buf, binary.LittleEndian, hashLen); err != nil {
@@ -55,7 +57,7 @@ func packHash(hash []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func validateFilePath(path []byte) error {
+func ValidateFilePath(path []byte) error {
 	// filePath structure is <path><NULL_BYTE>
 	pathSize := len(path)
 	if pathSize == 0 {
@@ -67,7 +69,7 @@ func validateFilePath(path []byte) error {
 	return nil
 }
 
-func validateFileHash(fileHash []byte, hashSize int) error {
+func ValidateFileHash(fileHash []byte, hashSize int) error {
 	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
 	var i, j int
 	var hashAlgoField []byte
@@ -79,7 +81,7 @@ func validateFileHash(fileHash []byte, hashSize int) error {
 		}
 		hashAlgoField = append(hashAlgoField, fileHash[i])
 	}
-	if !isValidFileHashAlgo(hashAlgoField) {
+	if !IsValidFileHashAlgo(hashAlgoField) {
 		return fmt.Errorf("invalid file hash algorithm: %s", hashAlgoField)
 	}
 
@@ -96,7 +98,7 @@ func validateFileHash(fileHash []byte, hashSize int) error {
 	return nil
 }
 
-func isValidFileHashAlgo(hashAlgo []byte) bool {
+func IsValidFileHashAlgo(hashAlgo []byte) bool {
 	switch string(hashAlgo) {
 	case "sha1", "sha256", "sha384", "sha512", "md5":
 		return true
@@ -122,7 +124,7 @@ func FromHashAlgoString(hashAlgoString string) crypto.Hash {
 	}
 }
 
-func toHashAlgoString(hash crypto.Hash) string {
+func ToHashAlgoString(hash crypto.Hash) string {
 	switch hash {
 	case crypto.MD5:
 		return "md5"

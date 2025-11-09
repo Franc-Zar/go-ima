@@ -6,14 +6,17 @@
   <component name="ChangeListManager">
     <list default="true" id="a4795c1e-0e1d-4cd8-8915-2243b50bbadf" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/integrity.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/integrity.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/measurement.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/measurement.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/target.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/target.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/template.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/templates/template.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/template_cgpath.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/templates/template_cgpath.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/template_ng.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/templates/template_ng.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/validator.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/validator/validator.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pkg/validator_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/validator/validator_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmd/ng-validator/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/cmd/ng-validator/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/attestation/integrity.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/attestation/integrity.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/attestation/target.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/attestation/target.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/attestation/tpm.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/attestation/tpm.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/measurement/measurement.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/measurement/measurement.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/templates/custom/cgpath.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/templates/custom/cgpath.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/templates/standard/ng.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/templates/standard/ng.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/templates/template.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/templates/template.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/utils/utils.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/utils/utils.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/validator/validator.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/validator/validator.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pkg/validator/validator_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/pkg/validator/validator_test.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,39 +42,42 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "DefaultGoTemplateProperty": "Go File",
-    "Go Build.go build github.com/franc-zar/go-ima/cmd/ng-validator.executor": "Run",
-    "Go Test.TestValidator_MeasurementListAttestation_cgpath_raw in github.com/franc-zar/go-ima/pkg.executor": "Run",
-    "Go Test.TestValidator_MeasurementListAttestation_file in github.com/franc-zar/go-ima/pkg.executor": "Run",
-    "Go Test.TestValidator_MeasurementListAttestation_raw in github.com/franc-zar/go-ima/pkg.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.go.formatter.settings.were.checked": "true",
-    "RunOnceActivity.go.migrated.go.modules.settings": "true",
-    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "main",
-    "go.import.settings.migrated": "true",
-    "go.sdk.automatically.set": "true",
-    "last_opened_file_path": "/home/francesco/Documents/lavoro/k8s-pod-attestation",
-    "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;DefaultGoTemplateProperty&quot;: &quot;Go File&quot;,
+    &quot;Go Build.go build github.com/franc-zar/go-ima/cmd/ng-validator.executor&quot;: &quot;Debug&quot;,
+    &quot;Go Test.TestValidator_MeasurementListAttestation_cgpath_raw in github.com/franc-zar/go-ima/pkg.executor&quot;: &quot;Run&quot;,
+    &quot;Go Test.TestValidator_MeasurementListAttestation_cgpath_raw in github.com/franc-zar/go-ima/pkg/validator.executor&quot;: &quot;Run&quot;,
+    &quot;Go Test.TestValidator_MeasurementListAttestation_file in github.com/franc-zar/go-ima/pkg.executor&quot;: &quot;Run&quot;,
+    &quot;Go Test.TestValidator_MeasurementListAttestation_ng in github.com/franc-zar/go-ima/pkg/validator.executor&quot;: &quot;Run&quot;,
+    &quot;Go Test.TestValidator_MeasurementListAttestation_raw in github.com/franc-zar/go-ima/pkg.executor&quot;: &quot;Run&quot;,
+    &quot;Go Test.go test github.com/franc-zar/go-ima/pkg/validator.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.formatter.settings.were.checked&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.migrated.go.modules.settings&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.go.modules.go.list.on.any.changes.was.set&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;go.import.settings.migrated&quot;: &quot;true&quot;,
+    &quot;go.sdk.automatically.set&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/francesco/Documents/projects/go-ima&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/pkg/validator" />
-      <recent name="$PROJECT_DIR$/pkg/templates" />
-      <recent name="$PROJECT_DIR$/pkg" />
-      <recent name="$PROJECT_DIR$/templates" />
-      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/pkg/measurement" />
+      <recent name="$PROJECT_DIR$/pkg/utils" />
+      <recent name="$PROJECT_DIR$/pkg/templates/custom" />
+      <recent name="$PROJECT_DIR$/pkg/templates/standard" />
+      <recent name="$PROJECT_DIR$/pkg/attestation" />
     </key>
   </component>
-  <component name="RunManager" selected="Go Test.TestValidator_MeasurementListAttestation_cgpath_raw in github.com/franc-zar/go-ima/pkg">
+  <component name="RunManager" selected="Go Build.go build github.com/franc-zar/go-ima/cmd/ng-validator">
     <configuration name="go build github.com/franc-zar/go-ima/cmd/ng-validator" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true" nameIsGenerated="true">
       <module name="go-ima" />
       <working_directory value="$PROJECT_DIR$" />
@@ -93,29 +99,65 @@
       <pattern value="^\QTestValidator_MeasurementListAttestation_cgpath_raw\E$" />
       <method v="2" />
     </configuration>
-    <configuration name="TestValidator_MeasurementListAttestation_raw in github.com/franc-zar/go-ima/pkg" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestValidator_MeasurementListAttestation_cgpath_raw in github.com/franc-zar/go-ima/pkg/validator" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="go-ima" />
-      <working_directory value="$PROJECT_DIR$/pkg" />
+      <working_directory value="$PROJECT_DIR$/pkg/validator" />
       <root_directory value="$PROJECT_DIR$" />
       <kind value="PACKAGE" />
-      <package value="github.com/franc-zar/go-ima/pkg" />
+      <package value="github.com/franc-zar/go-ima/pkg/validator" />
       <directory value="$PROJECT_DIR$" />
       <filePath value="$PROJECT_DIR$" />
       <framework value="gotest" />
-      <pattern value="^\QTestValidator_MeasurementListAttestation_raw\E$" />
+      <pattern value="^\QTestValidator_MeasurementListAttestation_cgpath_raw\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TestValidator_MeasurementListAttestation_ng in github.com/franc-zar/go-ima/pkg/validator" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="go-ima" />
+      <working_directory value="$PROJECT_DIR$/pkg/validator" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/franc-zar/go-ima/pkg/validator" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestValidator_MeasurementListAttestation_ng\E$" />
+      <method v="2" />
+    </configuration>
+    <configuration name="go test github.com/franc-zar/go-ima/pkg/validator" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="go-ima" />
+      <working_directory value="$PROJECT_DIR$/pkg/validator" />
+      <root_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="github.com/franc-zar/go-ima/pkg/validator" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
       <method v="2" />
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Go Test.TestValidator_MeasurementListAttestation_cgpath_raw in github.com/franc-zar/go-ima/pkg" />
-        <item itemvalue="Go Test.TestValidator_MeasurementListAttestation_raw in github.com/franc-zar/go-ima/pkg" />
         <item itemvalue="Go Build.go build github.com/franc-zar/go-ima/cmd/ng-validator" />
+        <item itemvalue="Go Test.TestValidator_MeasurementListAttestation_ng in github.com/franc-zar/go-ima/pkg/validator" />
+        <item itemvalue="Go Test.TestValidator_MeasurementListAttestation_cgpath_raw in github.com/franc-zar/go-ima/pkg/validator" />
+        <item itemvalue="Go Test.go test github.com/franc-zar/go-ima/pkg/validator" />
+        <item itemvalue="Go Test.TestValidator_MeasurementListAttestation_cgpath_raw in github.com/franc-zar/go-ima/pkg" />
       </list>
     </recent_temporary>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>

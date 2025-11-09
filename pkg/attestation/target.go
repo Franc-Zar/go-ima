@@ -5,7 +5,7 @@ import (
 )
 
 type Target interface {
-	CheckMatch(t Template) (bool, error)
+	CheckMatch(t templates.Template) (bool, error)
 	GetMatches() Matches
 }
 
@@ -19,11 +19,11 @@ func NewMatches() Matches {
 	}
 }
 
-func (m *Matches) AddMatch(measurementType MeasurementType, measurement Measurement) {
+func (m *Matches) Add(measurementType MeasurementType, measurement Measurement) {
 	m.Measurements[measurementType] = append(m.Measurements[measurementType], measurement)
 }
 
-func (m *Matches) RemoveMatch(measurementType MeasurementType, measurement Measurement) {
+func (m *Matches) Remove(measurementType MeasurementType, measurement Measurement) {
 	measurements := m.Measurements[measurementType]
 	for i, msr := range measurements {
 		if msr == measurement {

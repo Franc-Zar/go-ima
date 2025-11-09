@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"crypto"
 	"fmt"
+	"github.com/franc-zar/go-ima/pkg/attestation"
+	"github.com/franc-zar/go-ima/pkg/measurement"
+	"github.com/franc-zar/go-ima/pkg/templates"
+	"github.com/franc-zar/go-ima/pkg/utils"
 	"slices"
 )
 
@@ -23,7 +27,7 @@ const CgPathExtraLenFields = 4
 // | file Path (variable size) |
 
 type CgPathTemplate struct {
-	BasicEntry
+	templates.BasicEntry
 	CgPathExtraFields
 }
 
@@ -59,7 +63,7 @@ func (cg *CgPathTemplate) parseFilePath(buf []byte, filePathLen uint32) error {
 	if uint32(bufSize) != filePathLen {
 		return fmt.Errorf("invalid file path size: got %d, want %d", bufSize, filePathLen)
 	}
-	err := validateFilePath(buf)
+	err := utils.ValidateFilePath(buf)
 	if err != nil {
 		return fmt.Errorf("invalid file path field: %s", err)
 	}
@@ -75,22 +79,22 @@ func (cg *CgPathTemplate) FilePathToString() string {
 }
 
 func (cg *CgPathTemplate) MakeTemplateHash(hashAlgo crypto.Hash) ([]byte, error) {
-	packedDep, err := packPath(cg.Dependencies)
+	packedDep, err := utils.PackPath(cg.Dependencies)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack dependencies field: %v", err)
 	}
 
-	packedCgroup, err := packPath(cg.CGroup)
+	packedCgroup, err := utils.PackPath(cg.CGroup)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack cgroup path field: %v", err)
 	}
 
-	packedFileHash, err := packHash(cg.FileHash)
+	packedFileHash, err := utils.PackHash(cg.FileHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack file hash field: %v", err)
 	}
 
-	packedFilePath, err := packPath(cg.FilePath)
+	packedFilePath, err := utils.PackPath(cg.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack file path field: %v", err)
 	}
@@ -136,7 +140,7 @@ func (cg *CgPathTemplate) ValidateFieldsLen(expected int) error {
 	return nil
 }
 
-func (cg *CgPathTemplate) ParseEntry(r FieldReader, reservedPcr uint32, templateHashSize, fileHashSize int) error {
+func (cg *CgPathTemplate) ParseEntry(r measurement.FieldReader, reservedPcr uint32, templateHashSize, fileHashSize int) error {
 	var err error
 	err = cg.ParsePCR(r, reservedPcr)
 	if err != nil {
@@ -158,7 +162,7 @@ func (cg *CgPathTemplate) ParseEntry(r FieldReader, reservedPcr uint32, template
 }
 
 func (cg *CgPathTemplate) Clear() {
-	cg.BasicEntry = BasicEntry{}
+	cg.BasicEntry = templates.BasicEntry{}
 	cg.CgPathExtraFields = CgPathExtraFields{}
 }
 
@@ -203,7 +207,7 @@ func (cg *CgPathTemplate) parseFileHash(fileHash []byte, fileHashLen uint32, has
 	}
 
 	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
-	err := validateFileHash(fileHash, hashSize)
+	err := utils.ValidateFileHash(fileHash, hashSize)
 	if err != nil {
 		return fmt.Errorf("invalid file hash field: %s", err)
 	}
@@ -215,31 +219,31 @@ func (cg *CgPathTemplate) parseFileHash(fileHash []byte, fileHashLen uint32, has
 	return nil
 }
 
-func (cg *CgPathTemplate) ParsePCR(r FieldReader, reservedPcr uint32) error {
-	buf, err := r.ReadFixed(pcrSize)
+func (cg *CgPathTemplate) ParsePCR(r measurement.FieldReader, reservedPcr uint32) error {
+	buf, err := r.ReadFixed(utils.PcrSize)
 	if err != nil {
 		return fmt.Errorf("failed to read PCR field: %v", err)
 	}
-	return cg.BasicEntry.parsePCR(buf, reservedPcr)
+	return cg.BasicEntry.ParsePCR(buf, reservedPcr)
 }
 
-func (cg *CgPathTemplate) ParseTemplateHash(r FieldReader, hashSize int) error {
+func (cg *CgPathTemplate) ParseTemplateHash(r measurement.FieldReader, hashSize int) error {
 	buf, err := r.ReadFixed(hashSize)
 	if err != nil {
 		return fmt.Errorf("failed to read template hash field: %v", err)
 	}
-	return cg.BasicEntry.parseTemplateHash(buf, hashSize)
+	return cg.BasicEntry.ParseTemplateHash(buf, hashSize)
 }
 
-func (cg *CgPathTemplate) ParseTemplateName(r FieldReader) error {
+func (cg *CgPathTemplate) ParseTemplateName(r measurement.FieldReader) error {
 	templateName, err := r.ReadLenValue()
 	if err != nil {
 		return fmt.Errorf("failed to read template name field: %v", err)
 	}
-	return cg.BasicEntry.parseTemplateName(templateName, uint32(len(templateName)), cg.Name())
+	return cg.BasicEntry.ParseTemplateName(templateName, uint32(len(templateName)), cg.Name())
 }
 
-func (cg *CgPathTemplate) ParseExtraFieldsLen(r FieldReader) (uint32, error) {
+func (cg *CgPathTemplate) ParseExtraFieldsLen(r measurement.FieldReader) (uint32, error) {
 	extraFieldsLen, err := r.ReadLen()
 	if err != nil {
 		return 0, fmt.Errorf("failed to read extra fields length: %v", err)
@@ -247,7 +251,7 @@ func (cg *CgPathTemplate) ParseExtraFieldsLen(r FieldReader) (uint32, error) {
 	return extraFieldsLen, nil
 }
 
-func (cg *CgPathTemplate) ParseDependencies(r FieldReader) error {
+func (cg *CgPathTemplate) ParseDependencies(r measurement.FieldReader) error {
 	dep, err := r.ReadLenValue()
 	if err != nil {
 		return fmt.Errorf("failed to read dependencies field: %v", err)
@@ -255,7 +259,7 @@ func (cg *CgPathTemplate) ParseDependencies(r FieldReader) error {
 	return cg.parseDependencies(dep, uint32(len(dep)))
 }
 
-func (cg *CgPathTemplate) ParseCGroup(r FieldReader) error {
+func (cg *CgPathTemplate) ParseCGroup(r measurement.FieldReader) error {
 	cgroup, err := r.ReadLenValue()
 	if err != nil {
 		return fmt.Errorf("failed to read cgroup field: %v", err)
@@ -263,7 +267,7 @@ func (cg *CgPathTemplate) ParseCGroup(r FieldReader) error {
 	return cg.parseCGroup(cgroup, uint32(len(cgroup)))
 }
 
-func (cg *CgPathTemplate) ParseFileHash(r FieldReader, hashSize int) error {
+func (cg *CgPathTemplate) ParseFileHash(r measurement.FieldReader, hashSize int) error {
 	fileHash, err := r.ReadLenValue()
 	if err != nil {
 		return fmt.Errorf("failed to read file hash field: %v", err)
@@ -271,7 +275,7 @@ func (cg *CgPathTemplate) ParseFileHash(r FieldReader, hashSize int) error {
 	return cg.parseFileHash(fileHash, uint32(len(fileHash)), hashSize)
 }
 
-func (cg *CgPathTemplate) ParseFilePath(r FieldReader) error {
+func (cg *CgPathTemplate) ParseFilePath(r measurement.FieldReader) error {
 	filePath, err := r.ReadLenValue()
 	if err != nil {
 		return fmt.Errorf("failed to read file path field: %v", err)
@@ -279,7 +283,7 @@ func (cg *CgPathTemplate) ParseFilePath(r FieldReader) error {
 	return cg.parseFilePath(filePath, uint32(len(filePath)))
 }
 
-func (cg *CgPathTemplate) ParseExtraFields(r FieldReader, fileHashSize int) error {
+func (cg *CgPathTemplate) ParseExtraFields(r measurement.FieldReader, fileHashSize int) error {
 	var err error
 	// extra fields length
 	extraFieldsLen, err := cg.ParseExtraFieldsLen(r)
@@ -320,7 +324,7 @@ func (cg *CgPathTemplate) Size() int {
 	size += len(cg.CgPathExtraFields.CGroup)
 	size += len(cg.CgPathExtraFields.FileHash)
 	size += len(cg.CgPathExtraFields.FilePath)
-	size += CgPathExtraLenFields * lenFieldSize
+	size += CgPathExtraLenFields * utils.LenFieldSize
 	return size
 }
 
@@ -328,7 +332,7 @@ func (cg *CgPathTemplate) RawFileHashAlgo() ([]byte, error) {
 	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
 	var i int
 	for i = 0; i < len(cg.FileHash); i++ {
-		if cg.FileHash[i] == ColonByte {
+		if cg.FileHash[i] == utils.ColonByte {
 			return cg.CgPathExtraFields.FileHash[:i], nil
 		}
 	}
@@ -347,7 +351,7 @@ func (cg *CgPathTemplate) RawFileHashDigest() ([]byte, error) {
 	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
 	var i int
 	for i = 1; i < len(cg.FileHash); i++ {
-		if cg.FileHash[i-1] == NullByte {
+		if cg.FileHash[i-1] == utils.NullByte {
 			return cg.FileHash[i:], nil
 		}
 	}
@@ -383,21 +387,21 @@ type ContainerRuntimeDetails struct {
 type CgPathTarget struct {
 	podUid []byte
 	ContainerRuntimeDetails
-	Matches
+	attestation.Matches
 }
 
-func (t *CgPathTarget) GetMatches() Matches {
+func (t *CgPathTarget) GetMatches() attestation.Matches {
 	return t.Matches
 }
 
-func (t *CgPathTarget) CheckMatch(tmpl Template) (bool, error) {
+func (t *CgPathTarget) CheckMatch(tmpl templates.Template) (bool, error) {
 	cgTmpl, ok := tmpl.(*CgPathTemplate)
 	if !ok {
 		return false, fmt.Errorf("failed to parse Template into ima-cgpath template")
 	}
 
 	if t.IsContainerRuntimeDep(cgTmpl.Dependencies) || t.IsContainerRuntimeExecutable(cgTmpl.FilePath) {
-		t.AddMatch(ContainerRuntime, Measurement{
+		t.Add(attestation.ContainerRuntime, attestation.Measurement{
 			FilePath: cgTmpl.FilePathToString(),
 			FileHash: cgTmpl.FileHashDigestToString(),
 		})
@@ -405,7 +409,7 @@ func (t *CgPathTarget) CheckMatch(tmpl Template) (bool, error) {
 	}
 
 	if t.IsPodUidInCGroup(cgTmpl.CGroup) {
-		t.AddMatch(Pod, Measurement{
+		t.Add(attestation.Pod, attestation.Measurement{
 			FilePath: cgTmpl.FilePathToString(),
 			FileHash: cgTmpl.FileHashDigestToString(),
 		})
@@ -423,7 +427,7 @@ func NewCGPathTarget(podUid []byte, containerRuntimeName string) (*CgPathTarget,
 	return &CgPathTarget{
 		podUid:                  podUid,
 		ContainerRuntimeDetails: cr,
-		Matches:                 NewMatches(),
+		Matches:                 attestation.NewMatches(),
 	}, nil
 }
 

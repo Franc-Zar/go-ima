@@ -9,8 +9,10 @@ import (
 	"io"
 )
 
-const MaxPCRIndex = 23
-const MinPCRIndex = 10
+const (
+	MinPCRIndex = 10
+	MaxPCRIndex = 23
+)
 
 type TPM struct {
 	rwc  io.ReadWriteCloser

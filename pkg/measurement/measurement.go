@@ -2,20 +2,18 @@ package measurement
 
 import (
 	"fmt"
+	"github.com/franc-zar/go-ima/pkg/utils"
 	"io"
 	"os"
 )
 
 const DefaultBinaryPath = "/sys/kernel/security/integrity/ima/binary_runtime_measurements"
 
-const ColonByte = byte(58) // ASCII code for ":"
-const NullByte = byte(0)
-
-type MeasurementListType string
+type ListType uint8
 
 const (
-	File MeasurementListType = "file"
-	Raw  MeasurementListType = "raw"
+	File ListType = iota
+	Raw
 )
 
 type FieldReader interface {
@@ -24,80 +22,80 @@ type FieldReader interface {
 	ReadFixed(size int) ([]byte, error) // reads direct field
 }
 
-type MeasurementList struct {
-	Type MeasurementListType // complete path to measurement list file or raw content
-	Path string              // path to measurement list file
-	file *os.File            // file handle to measurement list file
-	raw  []byte              // raw content of measurement list
-	ptr  int64               // ptr contains the number of bytes processed i.e. index of next to read
+type List struct {
+	Type ListType // complete path to measurement list file or raw content
+	Path string   // path to measurement list file
+	file *os.File // file handle to measurement list file
+	Raw  []byte   // Raw content of measurement list
+	ptr  int64    // ptr contains the number of bytes processed i.e. index of next to read
 }
 
-func NewMeasurementListFromRaw(raw []byte, ptr int64) *MeasurementList {
-	return &MeasurementList{
+func NewMeasurementListFromRaw(raw []byte, ptr int64) *List {
+	return &List{
 		Type: Raw,
-		raw:  raw,
+		Raw:  raw,
 		ptr:  ptr,
 	}
 }
 
-func NewMeasurementListFromFile(path string, ptr int64) *MeasurementList {
+func NewMeasurementListFromFile(path string, ptr int64) *List {
 	if path == "" {
 		path = DefaultBinaryPath
 	}
-	return &MeasurementList{
+	return &List{
 		Type: File,
 		Path: path,
 		ptr:  ptr,
 	}
 }
 
-func (ml *MeasurementList) ReadLenValue() ([]byte, error) {
-	lenField, err := ml.Read(lenFieldSize)
+func (ml *List) ReadLenValue() ([]byte, error) {
+	lenField, err := ml.Read(utils.LenFieldSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read length field from IMA measurement list: %v", err)
 	}
-	fieldLen, err := parseFieldLen(lenField)
+	fieldLen, err := utils.ParseFieldLen(lenField)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read length field from IMA measurement list: %v", err)
 	}
 	return ml.Read(int(fieldLen))
 }
 
-func (ml *MeasurementList) ReadLen() (uint32, error) {
-	lenField, err := ml.Read(lenFieldSize)
+func (ml *List) ReadLen() (uint32, error) {
+	lenField, err := ml.Read(utils.LenFieldSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read length field from IMA measurement list: %v", err)
 	}
-	fieldLen, err := parseFieldLen(lenField)
+	fieldLen, err := utils.ParseFieldLen(lenField)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read length field from IMA measurement list: %v", err)
 	}
 	return fieldLen, nil
 }
 
-func (ml *MeasurementList) ReadFixed(size int) ([]byte, error) {
+func (ml *List) ReadFixed(size int) ([]byte, error) {
 	return ml.Read(size)
 }
 
-func (ml *MeasurementList) IsRaw() bool {
+func (ml *List) IsRaw() bool {
 	return ml.Type == Raw
 }
 
-func (ml *MeasurementList) IsFile() bool {
+func (ml *List) IsFile() bool {
 	return ml.Type == File
 }
 
-func (ml *MeasurementList) IsOpen() bool {
+func (ml *List) IsOpen() bool {
 	if !ml.IsFile() {
 		return false
 	}
 	return ml.file != nil
 }
 
-func (ml *MeasurementList) IsReady() bool {
+func (ml *List) IsReady() bool {
 	switch ml.Type {
 	case Raw:
-		return ml.raw != nil
+		return ml.Raw != nil
 
 	case File:
 		return ml.IsOpen()
@@ -107,7 +105,7 @@ func (ml *MeasurementList) IsReady() bool {
 	}
 }
 
-func (ml *MeasurementList) Open(offset int64) error {
+func (ml *List) Open(offset int64) error {
 	if !ml.IsFile() {
 		return fmt.Errorf("invalid IMA measurement list type: %v", ml.Type)
 	}
@@ -130,10 +128,10 @@ func (ml *MeasurementList) Open(offset int64) error {
 	return nil
 }
 
-func (ml *MeasurementList) SetOffset(offset int64) error {
+func (ml *List) SetOffset(offset int64) error {
 	switch ml.Type {
 	case Raw:
-		mlLen := int64(len(ml.raw))
+		mlLen := int64(len(ml.Raw))
 		if offset < 0 || offset > mlLen {
 			return fmt.Errorf("invalid offset for raw IMA measurement list: %d", offset)
 		}
@@ -157,7 +155,7 @@ func (ml *MeasurementList) SetOffset(offset int64) error {
 	}
 }
 
-func (ml *MeasurementList) Close() error {
+func (ml *List) Close() error {
 	if !ml.IsFile() {
 		return fmt.Errorf("invalid IMA measurement list type: %v", ml.Type)
 	}
@@ -175,11 +173,11 @@ func (ml *MeasurementList) Close() error {
 	return nil
 }
 
-func (ml *MeasurementList) ReadAll() ([]byte, error) {
+func (ml *List) ReadAll() ([]byte, error) {
 	switch ml.Type {
 	case Raw:
-		ml.ptr = int64(len(ml.raw))
-		return ml.raw, nil
+		ml.ptr = int64(len(ml.Raw))
+		return ml.Raw, nil
 
 	case File:
 		if ml.file == nil {
@@ -198,10 +196,10 @@ func (ml *MeasurementList) ReadAll() ([]byte, error) {
 	}
 }
 
-func (ml *MeasurementList) HasContent() (bool, error) {
+func (ml *List) HasContent() (bool, error) {
 	switch ml.Type {
 	case Raw:
-		return ml.ptr < int64(len(ml.raw)), nil
+		return ml.ptr < int64(len(ml.Raw)), nil
 	case File:
 		if ml.file == nil {
 			return false, nil
@@ -216,17 +214,17 @@ func (ml *MeasurementList) HasContent() (bool, error) {
 	}
 }
 
-func (ml *MeasurementList) Read(n int) ([]byte, error) {
+func (ml *List) Read(n int) ([]byte, error) {
 	if n <= 0 {
 		return nil, fmt.Errorf("failed to read IMA measurement list: cannot read %d", n)
 	}
 
 	switch ml.Type {
 	case Raw:
-		if ml.ptr+int64(n) > int64(len(ml.raw)) {
+		if ml.ptr+int64(n) > int64(len(ml.Raw)) {
 			return nil, io.EOF
 		}
-		buf := ml.raw[ml.ptr : ml.ptr+int64(n)]
+		buf := ml.Raw[ml.ptr : ml.ptr+int64(n)]
 		ml.ptr += int64(n)
 		return buf, nil
 
@@ -250,4 +248,8 @@ func (ml *MeasurementList) Read(n int) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("failed to read IMA measurement list: unknown measurement list type: %v", ml.Type)
 	}
+}
+
+func (ml *List) GetPtr() int64 {
+	return ml.ptr
 }

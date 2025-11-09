@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"crypto"
 	"fmt"
+	"github.com/franc-zar/go-ima/pkg/attestation"
+	"github.com/franc-zar/go-ima/pkg/measurement"
+	"github.com/franc-zar/go-ima/pkg/templates"
+	"github.com/franc-zar/go-ima/pkg/utils"
 	"slices"
 )
 
 const NgExtraLenFields = 2
 
 type NgTemplate struct {
-	BasicEntry
+	templates.BasicEntry
 	NgExtraFields
 }
 
@@ -19,31 +23,31 @@ type NgExtraFields struct {
 	FilePath []byte
 }
 
-func (ng *NgTemplate) ParsePCR(r FieldReader, reservedPcr uint32) error {
-	buf, err := r.ReadFixed(pcrSize)
+func (ng *NgTemplate) ParsePCR(r measurement.FieldReader, reservedPcr uint32) error {
+	buf, err := r.ReadFixed(utils.PcrSize)
 	if err != nil {
 		return fmt.Errorf("failed to read PCR field: %v", err)
 	}
-	return ng.BasicEntry.parsePCR(buf, reservedPcr)
+	return ng.BasicEntry.ParsePCR(buf, reservedPcr)
 }
 
-func (ng *NgTemplate) ParseTemplateHash(r FieldReader, hashSize int) error {
+func (ng *NgTemplate) ParseTemplateHash(r measurement.FieldReader, hashSize int) error {
 	buf, err := r.ReadFixed(hashSize)
 	if err != nil {
 		return fmt.Errorf("failed to read template hash field: %v", err)
 	}
-	return ng.BasicEntry.parseTemplateHash(buf, hashSize)
+	return ng.BasicEntry.ParseTemplateHash(buf, hashSize)
 }
 
-func (ng *NgTemplate) ParseTemplateName(r FieldReader) error {
+func (ng *NgTemplate) ParseTemplateName(r measurement.FieldReader) error {
 	templateName, err := r.ReadLenValue()
 	if err != nil {
 		return fmt.Errorf("failed to read template name field: %v", err)
 	}
-	return ng.BasicEntry.parseTemplateName(templateName, uint32(len(templateName)), ng.Name())
+	return ng.BasicEntry.ParseTemplateName(templateName, uint32(len(templateName)), ng.Name())
 }
 
-func (ng *NgTemplate) ParseExtraFieldsLen(r FieldReader) (uint32, error) {
+func (ng *NgTemplate) ParseExtraFieldsLen(r measurement.FieldReader) (uint32, error) {
 	extraFieldsLen, err := r.ReadLen()
 	if err != nil {
 		return 0, fmt.Errorf("failed to read extra fields length: %v", err)
@@ -51,7 +55,7 @@ func (ng *NgTemplate) ParseExtraFieldsLen(r FieldReader) (uint32, error) {
 	return extraFieldsLen, nil
 }
 
-func (ng *NgTemplate) ParseFileHash(r FieldReader, hashSize int) error {
+func (ng *NgTemplate) ParseFileHash(r measurement.FieldReader, hashSize int) error {
 	fileHash, err := r.ReadLenValue()
 	if err != nil {
 		return fmt.Errorf("failed to read file hash field: %v", err)
@@ -67,7 +71,7 @@ func (ng *NgTemplate) parseFileHash(fileHash []byte, fileHashLen uint32, hashSiz
 	}
 
 	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
-	err := validateFileHash(fileHash, hashSize)
+	err := utils.ValidateFileHash(fileHash, hashSize)
 	if err != nil {
 		return fmt.Errorf("invalid file hash field: %s", err)
 	}
@@ -84,7 +88,7 @@ func (ng *NgTemplate) parseFilePath(buf []byte, filePathLen uint32) error {
 	if uint32(bufSize) != filePathLen {
 		return fmt.Errorf("invalid file path size: got %d, want %d", bufSize, filePathLen)
 	}
-	err := validateFilePath(buf)
+	err := utils.ValidateFilePath(buf)
 	if err != nil {
 		return fmt.Errorf("invalid file path field: %s", err)
 	}
@@ -94,7 +98,7 @@ func (ng *NgTemplate) parseFilePath(buf []byte, filePathLen uint32) error {
 	return nil
 }
 
-func (ng *NgTemplate) ParseFilePath(r FieldReader) error {
+func (ng *NgTemplate) ParseFilePath(r measurement.FieldReader) error {
 	filePath, err := r.ReadLenValue()
 	if err != nil {
 		return fmt.Errorf("failed to read file path field: %v", err)
@@ -102,7 +106,7 @@ func (ng *NgTemplate) ParseFilePath(r FieldReader) error {
 	return ng.parseFilePath(filePath, uint32(len(filePath)))
 }
 
-func (ng *NgTemplate) ParseExtraFields(r FieldReader, fileHashSize int) error {
+func (ng *NgTemplate) ParseExtraFields(r measurement.FieldReader, fileHashSize int) error {
 	var err error
 	// extra fields length
 	extraFieldsLen, err := ng.ParseExtraFieldsLen(r)
@@ -127,7 +131,7 @@ func (ng *NgTemplate) ParseExtraFields(r FieldReader, fileHashSize int) error {
 	return nil
 }
 
-func (ng *NgTemplate) ParseEntry(r FieldReader, reservedPcr uint32, templateHashSize, fileHashSize int) error {
+func (ng *NgTemplate) ParseEntry(r measurement.FieldReader, reservedPcr uint32, templateHashSize, fileHashSize int) error {
 	var err error
 	err = ng.ParsePCR(r, reservedPcr)
 	if err != nil {
@@ -152,7 +156,7 @@ func (ng *NgTemplate) Size() int {
 	size := ng.BasicEntry.Size()
 	size += len(ng.FileHash)
 	size += len(ng.FilePath)
-	size += NgExtraLenFields * lenFieldSize
+	size += NgExtraLenFields * utils.LenFieldSize
 	return size
 }
 
@@ -165,12 +169,12 @@ func (ng *NgTemplate) ValidateFieldsLen(expected int) error {
 }
 
 func (ng *NgTemplate) MakeTemplateHash(hashAlgo crypto.Hash) ([]byte, error) {
-	packedFileHash, err := packHash(ng.FileHash)
+	packedFileHash, err := utils.PackHash(ng.FileHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack file hash field: %v", err)
 	}
 
-	packedFilePath, err := packPath(ng.FilePath)
+	packedFilePath, err := utils.PackPath(ng.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack file path field: %v", err)
 	}
@@ -205,29 +209,29 @@ func (ng *NgTemplate) Name() []byte {
 }
 
 func (ng *NgTemplate) Clear() {
-	ng.BasicEntry = BasicEntry{}
+	ng.BasicEntry = templates.BasicEntry{}
 	ng.NgExtraFields = NgExtraFields{}
 }
 
 type NgTarget struct {
 	fileHashes [][]byte
 	FilePaths  [][]byte
-	Matches
+	attestation.Matches
 }
 
 func NewNgTarget(fileHashes, filePaths [][]byte) *NgTarget {
 	return &NgTarget{
 		fileHashes: fileHashes,
 		FilePaths:  filePaths,
-		Matches:    NewMatches(),
+		Matches:    attestation.NewMatches(),
 	}
 }
 
-func (n NgTarget) CheckMatch(t Template) (bool, error) {
+func (n NgTarget) CheckMatch(t templates.Template) (bool, error) {
 	panic("implement me")
 }
 
-func (n NgTarget) GetMatches() Matches {
+func (n NgTarget) GetMatches() attestation.Matches {
 	//TODO implement me
 	panic("implement me")
 }

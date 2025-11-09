@@ -2,6 +2,9 @@ package validator
 
 import (
 	"crypto"
+	"github.com/franc-zar/go-ima/pkg/attestation"
+	"github.com/franc-zar/go-ima/pkg/measurement"
+	"github.com/franc-zar/go-ima/pkg/templates/custom"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
@@ -9,26 +12,21 @@ import (
 )
 
 func TestValidator_MeasurementListAttestation_cgpath_raw(t *testing.T) {
-	f, err := os.Open("../tests/bin_cgpath")
+	f, err := os.Open("../../tests/bin_cgpath")
 	assert.NoError(t, err)
 	raw, err := io.ReadAll(f)
 	assert.NoError(t, err)
 	err = f.Close()
 	assert.NoError(t, err)
 
-	ml := &MeasurementList{
-		Type: Raw,
-		raw:  raw,
+	ml := &measurement.List{
+		Type: measurement.Raw,
+		Raw:  raw,
 	}
-	i := &Integrity{
-		attested:         0,
-		aggregate:        make([]byte, crypto.SHA1.Size()),
-		PcrIndex:         DefaultPCRIndex,
-		TemplateHashAlgo: crypto.SHA1,
-		FileHashAlgo:     crypto.SHA256,
-	}
-	v := NewCgPathValidator(ml, i, nil)
+	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	assert.NoError(t, err)
 
+	v := NewCgPathValidator(ml, i, nil)
 	expected := []byte{
 		0x5f, 0x94, 0xb4, 0xae, 0xc6, 0x8c, 0xfb, 0x59,
 		0x31, 0xb2, 0x32, 0xc1, 0x3d, 0xc5, 0xbc, 0xbb,
@@ -40,20 +38,16 @@ func TestValidator_MeasurementListAttestation_cgpath_raw(t *testing.T) {
 }
 
 func TestValidator_MeasurementListAttestation_file(t *testing.T) {
-	ml := &MeasurementList{
-		Type: File,
-		Path: "../tests/bin_ima",
+	ml := &measurement.List{
+		Type: measurement.File,
+		Path: "../../tests/bin_ima",
 	}
 	err := ml.Open(0)
 	assert.NoError(t, err)
 
-	i := &Integrity{
-		attested:         0,
-		aggregate:        make([]byte, crypto.SHA1.Size()),
-		PcrIndex:         DefaultPCRIndex,
-		TemplateHashAlgo: crypto.SHA1,
-		FileHashAlgo:     crypto.SHA256,
-	}
+	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	assert.NoError(t, err)
+
 	h := NewCgPathValidator(ml, i, nil)
 
 	expected := []byte{
@@ -67,21 +61,17 @@ func TestValidator_MeasurementListAttestation_file(t *testing.T) {
 }
 
 func TestValidator_MeasurementListAttestation_target(t *testing.T) {
-	ml := &MeasurementList{
-		Type: File,
-		Path: "../tests/bin_ima",
+	ml := &measurement.List{
+		Type: measurement.File,
+		Path: "../../tests/bin_ima",
 	}
 	err := ml.Open(0)
 	assert.NoError(t, err)
 
-	i := &Integrity{
-		attested:         0,
-		aggregate:        make([]byte, crypto.SHA1.Size()),
-		PcrIndex:         DefaultPCRIndex,
-		TemplateHashAlgo: crypto.SHA1,
-		FileHashAlgo:     crypto.SHA256,
-	}
-	target, err := NewCGPathTarget([]byte("c439ca84_e4c4_42ab_a0c6_298c8067be39"), Containerd)
+	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	assert.NoError(t, err)
+
+	target, err := custom.NewCGPathTarget([]byte("c439ca84_e4c4_42ab_a0c6_298c8067be39"), custom.Containerd)
 	assert.NoError(t, err)
 
 	v := NewCgPathValidator(ml, i, target)
@@ -95,25 +85,20 @@ func TestValidator_MeasurementListAttestation_target(t *testing.T) {
 	err = v.MeasurementListAttestation(expected)
 	assert.NoError(t, err)
 
-	assert.Equal(t, len(v.Target.GetMatches().Measurements[Pod]), 44)
-	assert.Equal(t, len(v.Target.GetMatches().Measurements[ContainerRuntime]), 7)
+	assert.Equal(t, len(v.Target.GetMatches().Measurements[attestation.Pod]), 44)
+	assert.Equal(t, len(v.Target.GetMatches().Measurements[attestation.ContainerRuntime]), 7)
 }
 
 func TestValidator_MeasurementListAttestation_ng(t *testing.T) {
-	ml := &MeasurementList{
-		Type: File,
-		Path: "../tests/ima_ng",
+	ml := &measurement.List{
+		Type: measurement.File,
+		Path: "../../tests/ima_ng",
 	}
 	err := ml.Open(0)
 	assert.NoError(t, err)
 
-	i := &Integrity{
-		attested:         0,
-		aggregate:        make([]byte, crypto.SHA1.Size()),
-		PcrIndex:         DefaultPCRIndex,
-		TemplateHashAlgo: crypto.SHA1,
-		FileHashAlgo:     crypto.SHA256,
-	}
+	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	assert.NoError(t, err)
 
 	v := NewNgValidator(ml, i, nil)
 	expected := []byte{
@@ -127,24 +112,20 @@ func TestValidator_MeasurementListAttestation_ng(t *testing.T) {
 }
 
 func TestValidator_MeasurementListAttestation_cgpath_partialAttestation(t *testing.T) {
-	f, err := os.Open("../tests/bin_ima")
+	f, err := os.Open("../../tests/bin_ima")
 	assert.NoError(t, err)
 	raw, err := io.ReadAll(f)
 	assert.NoError(t, err)
 	err = f.Close()
 	assert.NoError(t, err)
 
-	ml := &MeasurementList{
-		Type: Raw,
-		raw:  raw,
+	ml := &measurement.List{
+		Type: measurement.Raw,
+		Raw:  raw,
 	}
-	i := &Integrity{
-		attested:         0,
-		aggregate:        make([]byte, crypto.SHA1.Size()),
-		PcrIndex:         DefaultPCRIndex,
-		TemplateHashAlgo: crypto.SHA1,
-		FileHashAlgo:     crypto.SHA256,
-	}
+
+	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	assert.NoError(t, err)
 
 	v := NewCgPathValidator(ml, i, nil)
 	expected := []byte{
@@ -174,24 +155,19 @@ func TestValidator_MeasurementListAttestation_cgpath_partialAttestation(t *testi
 }
 
 func TestValidator_MeasurementListAttestation_raw(t *testing.T) {
-	f, err := os.Open("../tests/bin_ima")
+	f, err := os.Open("../../tests/bin_ima")
 	assert.NoError(t, err)
 	raw, err := io.ReadAll(f)
 	assert.NoError(t, err)
 	err = f.Close()
 	assert.NoError(t, err)
 
-	ml := &MeasurementList{
-		Type: Raw,
-		raw:  raw,
+	ml := &measurement.List{
+		Type: measurement.Raw,
+		Raw:  raw,
 	}
-	i := &Integrity{
-		attested:         0,
-		aggregate:        make([]byte, crypto.SHA1.Size()),
-		PcrIndex:         DefaultPCRIndex,
-		TemplateHashAlgo: crypto.SHA1,
-		FileHashAlgo:     crypto.SHA256,
-	}
+	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	assert.NoError(t, err)
 	v := NewCgPathValidator(ml, i, nil)
 
 	expected := []byte{
