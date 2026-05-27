@@ -1,6 +1,7 @@
 package measurement
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/franc-zar/go-ima/pkg/utils"
 	"io"
@@ -23,17 +24,17 @@ type FieldReader interface {
 }
 
 type List struct {
-	Type ListType // complete path to measurement list file or raw content
-	Path string   // path to measurement list file
-	file *os.File // file handle to measurement list file
-	Raw  []byte   // Raw content of measurement list
-	ptr  int64    // ptr contains the number of bytes processed i.e. index of next to read
+	Type ListType      // complete path to measurement list file or raw content
+	Path string        // path to measurement list file
+	file *os.File      // file handle to measurement list file
+	Raw  *bytes.Reader // Raw content of measurement list
+	ptr  int64         // ptr contains the number of bytes processed i.e. index of next to read
 }
 
 func NewMeasurementListFromRaw(raw []byte, ptr int64) *List {
 	return &List{
 		Type: Raw,
-		Raw:  raw,
+		Raw:  bytes.NewReader(raw),
 		ptr:  ptr,
 	}
 }
@@ -50,13 +51,9 @@ func NewMeasurementListFromFile(path string, ptr int64) *List {
 }
 
 func (ml *List) ReadLenValue() ([]byte, error) {
-	lenField, err := ml.Read(utils.LenFieldSize)
+	fieldLen, err := ml.ReadLen()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read length field from IMA measurement list: %v", err)
-	}
-	fieldLen, err := utils.ParseFieldLen(lenField)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read length field from IMA measurement list: %v", err)
+		return nil, err
 	}
 	return ml.Read(int(fieldLen))
 }
@@ -125,15 +122,19 @@ func (ml *List) Open(offset int64) error {
 	}
 
 	ml.file = f
+	ml.ptr = offset
 	return nil
 }
 
 func (ml *List) SetOffset(offset int64) error {
 	switch ml.Type {
 	case Raw:
-		mlLen := int64(len(ml.Raw))
-		if offset < 0 || offset > mlLen {
-			return fmt.Errorf("invalid offset for raw IMA measurement list: %d", offset)
+		if ml.Raw == nil {
+			return fmt.Errorf("failed to read IMA measurement list: data not available")
+		}
+		_, err := ml.Raw.Seek(offset, io.SeekStart)
+		if err != nil {
+			return fmt.Errorf("failed to seek to offset in IMA measurement list: %v", err)
 		}
 		ml.ptr = offset
 		return nil
@@ -156,8 +157,8 @@ func (ml *List) SetOffset(offset int64) error {
 }
 
 func (ml *List) Close() error {
-	if !ml.IsFile() {
-		return fmt.Errorf("invalid IMA measurement list type: %v", ml.Type)
+	if ml.Type == Raw {
+		return nil
 	}
 
 	if ml.file == nil {
@@ -176,8 +177,12 @@ func (ml *List) Close() error {
 func (ml *List) ReadAll() ([]byte, error) {
 	switch ml.Type {
 	case Raw:
-		ml.ptr = int64(len(ml.Raw))
-		return ml.Raw, nil
+		buf, err := io.ReadAll(ml.Raw)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
+		}
+		ml.ptr += int64(len(buf))
+		return buf, nil
 
 	case File:
 		if ml.file == nil {
@@ -188,7 +193,7 @@ func (ml *List) ReadAll() ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
 		}
-		ml.ptr = int64(len(buf))
+		ml.ptr += int64(len(buf))
 		return buf, nil
 
 	default:
@@ -199,7 +204,7 @@ func (ml *List) ReadAll() ([]byte, error) {
 func (ml *List) HasContent() (bool, error) {
 	switch ml.Type {
 	case Raw:
-		return ml.ptr < int64(len(ml.Raw)), nil
+		return ml.ptr < ml.Raw.Size(), nil
 	case File:
 		if ml.file == nil {
 			return false, nil
@@ -216,15 +221,18 @@ func (ml *List) HasContent() (bool, error) {
 
 func (ml *List) Read(n int) ([]byte, error) {
 	if n <= 0 {
-		return nil, fmt.Errorf("failed to read IMA measurement list: cannot read %d", n)
+		return nil, fmt.Errorf("failed to read IMA measurement list: cannot read %d bytes", n)
 	}
-
 	switch ml.Type {
 	case Raw:
-		if ml.ptr+int64(n) > int64(len(ml.Raw)) {
-			return nil, io.EOF
+		if ml.Raw == nil {
+			return nil, fmt.Errorf("failed to read IMA measurement list: data not available")
 		}
-		buf := ml.Raw[ml.ptr : ml.ptr+int64(n)]
+		buf := make([]byte, n)
+		_, err := ml.Raw.Read(buf)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
+		}
 		ml.ptr += int64(n)
 		return buf, nil
 
@@ -236,11 +244,7 @@ func (ml *List) Read(n int) ([]byte, error) {
 		buf := make([]byte, n)
 		_, err := io.ReadAtLeast(ml.file, buf, n)
 		if err != nil {
-			if err == io.EOF {
-				return nil, err
-			} else {
-				return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
-			}
+			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
 		}
 		ml.ptr += int64(n)
 		return buf, nil

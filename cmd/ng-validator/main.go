@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/franc-zar/go-ima/pkg/attestation"
 	"github.com/franc-zar/go-ima/pkg/measurement"
 	"github.com/franc-zar/go-ima/pkg/validator"
-	"os"
 )
 
 func main() {
@@ -50,11 +51,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	integrity, err := attestation.NewIntegrity(
+	integrity, err := attestation.NewAttester(
 		uint32(*pcrIndex),
 		crypto.Hash(*templateHash),
 		crypto.Hash(*fileHash),
-		nil,
 		0,
 	)
 	if err != nil {
