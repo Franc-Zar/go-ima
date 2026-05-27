@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"crypto"
 	"fmt"
+	"slices"
+
 	"github.com/franc-zar/go-ima/pkg/attestation"
 	"github.com/franc-zar/go-ima/pkg/measurement"
 	"github.com/franc-zar/go-ima/pkg/templates"
 	"github.com/franc-zar/go-ima/pkg/utils"
-	"slices"
 )
 
 const CgPathExtraLenFields = 4
@@ -74,8 +75,7 @@ func (cg *CgPathTemplate) parseFilePath(buf []byte, filePathLen uint32) error {
 }
 
 func (cg *CgPathTemplate) FilePathToString() string {
-	filePath := string(cg.FilePath[:len(cg.FilePath)-1]) // remove NULL_BYTE
-	return filePath
+	return utils.FilePathToString(cg.FilePath)
 }
 
 func (cg *CgPathTemplate) MakeTemplateHash(hashAlgo crypto.Hash) ([]byte, error) {
@@ -110,26 +110,23 @@ func (cg *CgPathTemplate) MakeTemplateHash(hashAlgo crypto.Hash) ([]byte, error)
 }
 
 func (cg *CgPathTemplate) DepToString() string {
+	if len(cg.CgPathExtraFields.Dependencies) == 0 {
+		return ""
+	}
 	dep := string(cg.CgPathExtraFields.Dependencies[:len(cg.CgPathExtraFields.Dependencies)-1]) // remove NULL_BYTE
 	return dep
 }
 
 func (cg *CgPathTemplate) CGroupToString() string {
+	if len(cg.CgPathExtraFields.CGroup) == 0 {
+		return ""
+	}
 	cgroup := string(cg.CgPathExtraFields.CGroup[:len(cg.CgPathExtraFields.CGroup)-1]) // remove NULL_BYTE
 	return cgroup
 }
 
 func (cg *CgPathTemplate) FileHashToString() string {
-	hashAlgo, err := cg.RawFileHashAlgo()
-	if err != nil {
-		return "invalid_file_hash"
-	}
-	digest, err := cg.RawFileHashDigest()
-	if err != nil {
-		return "invalid_file_hash"
-	}
-	fileHash := fmt.Sprintf("%s:%x", hashAlgo, digest)
-	return fileHash
+	return utils.FileHashToString(cg.FileHash)
 }
 
 func (cg *CgPathTemplate) ValidateFieldsLen(expected int) error {
@@ -171,7 +168,7 @@ func (cg *CgPathTemplate) ValidateEntry(templateHashAlgo crypto.Hash) error {
 	if err != nil {
 		return fmt.Errorf("failed to compute template hash: %v", err)
 	}
-	if bytes.Compare(computedTemplateHash, cg.TemplateHash) != 0 {
+	if !bytes.Equal(computedTemplateHash, cg.TemplateHash) {
 		return fmt.Errorf("template hash mismatch: got %x, want %x", cg.BasicEntry.TemplateHash, computedTemplateHash)
 	}
 	return nil
@@ -328,34 +325,18 @@ func (cg *CgPathTemplate) Size() int {
 	return size
 }
 
-func (cg *CgPathTemplate) RawFileHashAlgo() ([]byte, error) {
+func (cg *CgPathTemplate) FileHashAlgo() ([]byte, error) {
 	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
-	var i int
-	for i = 0; i < len(cg.FileHash); i++ {
-		if cg.FileHash[i] == utils.ColonByte {
-			return cg.CgPathExtraFields.FileHash[:i], nil
-		}
-	}
-	return nil, fmt.Errorf("invalid file hash field")
+	return utils.FileHashAlgo(cg.CgPathExtraFields.FileHash)
 }
 
 func (cg *CgPathTemplate) FileHashDigestToString() string {
-	digest, err := cg.RawFileHashDigest()
-	if err != nil {
-		return "invalid_file_hash"
-	}
-	return fmt.Sprintf("%x", digest)
+	return utils.FileHashDigestToString(cg.CgPathExtraFields.FileHash)
 }
 
-func (cg *CgPathTemplate) RawFileHashDigest() ([]byte, error) {
+func (cg *CgPathTemplate) FileHashDigest() ([]byte, error) {
 	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
-	var i int
-	for i = 1; i < len(cg.FileHash); i++ {
-		if cg.FileHash[i-1] == utils.NullByte {
-			return cg.FileHash[i:], nil
-		}
-	}
-	return nil, fmt.Errorf("invalid file hash field")
+	return utils.FileHashDigest(cg.CgPathExtraFields.FileHash)
 }
 
 const (
@@ -390,26 +371,26 @@ type CgPathTarget struct {
 	attestation.Matches
 }
 
-func (t *CgPathTarget) GetMatches() attestation.Matches {
-	return t.Matches
+func (cgt *CgPathTarget) GetMatches() attestation.Matches {
+	return cgt.Matches
 }
 
-func (t *CgPathTarget) CheckMatch(tmpl templates.Template) (bool, error) {
-	cgTmpl, ok := tmpl.(*CgPathTemplate)
+func (cgt *CgPathTarget) CheckMatch(t templates.Template) (bool, error) {
+	cgTmpl, ok := t.(*CgPathTemplate)
 	if !ok {
 		return false, fmt.Errorf("failed to parse Template into ima-cgpath template")
 	}
 
-	if t.IsContainerRuntimeDep(cgTmpl.Dependencies) || t.IsContainerRuntimeExecutable(cgTmpl.FilePath) {
-		t.Add(attestation.ContainerRuntime, attestation.Measurement{
+	if cgt.IsContainerRuntimeDep(cgTmpl.Dependencies) || cgt.IsContainerRuntimeExecutable(cgTmpl.FilePath) {
+		cgt.Add(attestation.ContainerRuntime, attestation.Measurement{
 			FilePath: cgTmpl.FilePathToString(),
 			FileHash: cgTmpl.FileHashDigestToString(),
 		})
 		return true, nil
 	}
 
-	if t.IsPodUidInCGroup(cgTmpl.CGroup) {
-		t.Add(attestation.Pod, attestation.Measurement{
+	if cgt.IsPodUidInCGroup(cgTmpl.CGroup) {
+		cgt.Add(attestation.Pod, attestation.Measurement{
 			FilePath: cgTmpl.FilePathToString(),
 			FileHash: cgTmpl.FileHashDigestToString(),
 		})
@@ -431,8 +412,8 @@ func NewCGPathTarget(podUid []byte, containerRuntimeName string) (*CgPathTarget,
 	}, nil
 }
 
-func (t *CgPathTarget) IsContainerRuntimeDep(dep []byte) bool {
-	for _, d := range t.ContainerRuntimeDetails.Dependencies {
+func (cgt *CgPathTarget) IsContainerRuntimeDep(dep []byte) bool {
+	for _, d := range cgt.ContainerRuntimeDetails.Dependencies {
 		if bytes.Contains(dep, d) {
 			return true
 		}
@@ -440,22 +421,18 @@ func (t *CgPathTarget) IsContainerRuntimeDep(dep []byte) bool {
 	return false
 }
 
-func (t *CgPathTarget) IsContainerRuntimeExecutable(filePath []byte) bool {
-	return bytes.Contains(filePath, t.ContainerRuntimeDetails.Executable)
+func (cgt *CgPathTarget) IsContainerRuntimeExecutable(filePath []byte) bool {
+	return bytes.Contains(filePath, cgt.ContainerRuntimeDetails.Executable)
 }
 
-func (t *CgPathTarget) IsPodUidInCGroup(cgroup []byte) bool {
+func (cgt *CgPathTarget) IsPodUidInCGroup(cgroup []byte) bool {
 	// Replace dashes with underscores in podUid
-	adjustedPodUid := bytes.ReplaceAll(t.podUid, []byte("-"), []byte("_"))
+	adjustedPodUid := bytes.ReplaceAll(cgt.podUid, []byte("-"), []byte("_"))
 
 	// Build the pattern we want to find: "-pod<adjustedPodUid>.slice"
 	pattern := slices.Concat([]byte("-pod"), adjustedPodUid, []byte(".slice"))
 
 	// Search for the pattern in path
-	if i := bytes.Index(cgroup, pattern); i >= 0 {
-		if bytes.Contains(cgroup[:i], []byte("kubepods")) {
-			return true
-		}
-	}
-	return false
+	i := bytes.Index(cgroup, pattern)
+	return i >= 0 && bytes.Contains(cgroup[:i], []byte("kubepods"))
 }

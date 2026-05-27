@@ -12,6 +12,55 @@ const NullByte = byte(0)
 const LenFieldSize = 4 // size of field containing length of variable-length fields
 const PcrSize = 4
 
+func FilePathToString(filePath []byte) string {
+	if len(filePath) == 0 {
+		return ""
+	}
+	return string(filePath[:len(filePath)-1])
+}
+
+func FileHashAlgo(fileHash []byte) ([]byte, error) {
+	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
+	var i int
+	for i = 0; i < len(fileHash); i++ {
+		if fileHash[i] == ColonByte {
+			return fileHash[:i], nil
+		}
+	}
+	return nil, fmt.Errorf("invalid file hash field")
+}
+
+func FileHashDigest(fileHash []byte) ([]byte, error) {
+	// fileHash structure is <hashAlgoField>:<NULL_BYTE><digest>
+	var i int
+	for i = 1; i < len(fileHash); i++ {
+		if fileHash[i-1] == NullByte {
+			return fileHash[i:], nil
+		}
+	}
+	return nil, fmt.Errorf("invalid file hash field")
+}
+
+func FileHashToString(fileHash []byte) string {
+	hashAlgo, err := FileHashAlgo(fileHash)
+	if err != nil {
+		return "invalid_file_hash"
+	}
+	digest, err := FileHashDigest(fileHash)
+	if err != nil {
+		return "invalid_file_hash"
+	}
+	return fmt.Sprintf("%s:%x", hashAlgo, digest)
+}
+
+func FileHashDigestToString(fileHash []byte) string {
+	digest, err := FileHashDigest(fileHash)
+	if err != nil {
+		return "invalid_file_hash"
+	}
+	return fmt.Sprintf("%x", digest)
+}
+
 // ParseFieldLen parses a length field from a byte buffer and returns the length as uint32.
 func ParseFieldLen(field []byte) (uint32, error) {
 	fieldSize := len(field)

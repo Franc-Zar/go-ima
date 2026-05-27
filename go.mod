@@ -5,7 +5,6 @@ go 1.24.5
 require (
 	github.com/google/go-tpm v0.9.6
 	github.com/google/go-tpm-tools v0.4.6
-	github.com/modern-go/reflect2 v1.0.2
 	github.com/stretchr/testify v1.11.1
 )
 

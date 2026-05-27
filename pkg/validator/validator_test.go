@@ -1,14 +1,16 @@
 package validator
 
 import (
+	"bytes"
 	"crypto"
+	"io"
+	"os"
+	"testing"
+
 	"github.com/franc-zar/go-ima/pkg/attestation"
 	"github.com/franc-zar/go-ima/pkg/measurement"
 	"github.com/franc-zar/go-ima/pkg/templates/custom"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"os"
-	"testing"
 )
 
 func TestValidator_MeasurementListAttestation_cgpath_raw(t *testing.T) {
@@ -21,9 +23,9 @@ func TestValidator_MeasurementListAttestation_cgpath_raw(t *testing.T) {
 
 	ml := &measurement.List{
 		Type: measurement.Raw,
-		Raw:  raw,
+		Raw:  bytes.NewReader(raw),
 	}
-	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	i, err := attestation.NewAttester(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, 0)
 	assert.NoError(t, err)
 
 	v := NewCgPathValidator(ml, i, nil)
@@ -45,7 +47,7 @@ func TestValidator_MeasurementListAttestation_file(t *testing.T) {
 	err := ml.Open(0)
 	assert.NoError(t, err)
 
-	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	i, err := attestation.NewAttester(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, 0)
 	assert.NoError(t, err)
 
 	h := NewCgPathValidator(ml, i, nil)
@@ -68,7 +70,7 @@ func TestValidator_MeasurementListAttestation_target(t *testing.T) {
 	err := ml.Open(0)
 	assert.NoError(t, err)
 
-	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	i, err := attestation.NewAttester(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, 0)
 	assert.NoError(t, err)
 
 	target, err := custom.NewCGPathTarget([]byte("c439ca84_e4c4_42ab_a0c6_298c8067be39"), custom.Containerd)
@@ -97,7 +99,7 @@ func TestValidator_MeasurementListAttestation_ng(t *testing.T) {
 	err := ml.Open(0)
 	assert.NoError(t, err)
 
-	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	i, err := attestation.NewAttester(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, 0)
 	assert.NoError(t, err)
 
 	v := NewNgValidator(ml, i, nil)
@@ -121,10 +123,10 @@ func TestValidator_MeasurementListAttestation_cgpath_partialAttestation(t *testi
 
 	ml := &measurement.List{
 		Type: measurement.Raw,
-		Raw:  raw,
+		Raw:  bytes.NewReader(raw),
 	}
 
-	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	i, err := attestation.NewAttester(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, 0)
 	assert.NoError(t, err)
 
 	v := NewCgPathValidator(ml, i, nil)
@@ -164,9 +166,9 @@ func TestValidator_MeasurementListAttestation_raw(t *testing.T) {
 
 	ml := &measurement.List{
 		Type: measurement.Raw,
-		Raw:  raw,
+		Raw:  bytes.NewReader(raw),
 	}
-	i, err := attestation.NewIntegrity(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, nil, 0)
+	i, err := attestation.NewAttester(attestation.DefaultPCRIndex, crypto.SHA1, crypto.SHA256, 0)
 	assert.NoError(t, err)
 	v := NewCgPathValidator(ml, i, nil)
 

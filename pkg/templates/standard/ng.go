@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"crypto"
 	"fmt"
+	"slices"
+
 	"github.com/franc-zar/go-ima/pkg/attestation"
 	"github.com/franc-zar/go-ima/pkg/measurement"
 	"github.com/franc-zar/go-ima/pkg/templates"
 	"github.com/franc-zar/go-ima/pkg/utils"
-	"slices"
 )
 
 const NgExtraLenFields = 2
@@ -21,6 +22,18 @@ type NgTemplate struct {
 type NgExtraFields struct {
 	FileHash []byte
 	FilePath []byte
+}
+
+func (ng *NgTemplate) FileHashToString() string {
+	return utils.FileHashToString(ng.FileHash)
+}
+
+func (ng *NgTemplate) FileHashDigestToString() string {
+	return utils.FileHashDigestToString(ng.FileHash)
+}
+
+func (ng *NgTemplate) FilePathToString() string {
+	return utils.FilePathToString(ng.FilePath)
 }
 
 func (ng *NgTemplate) ParsePCR(r measurement.FieldReader, reservedPcr uint32) error {
@@ -194,7 +207,7 @@ func (ng *NgTemplate) ValidateEntry(templateHashAlgo crypto.Hash) error {
 	if err != nil {
 		return fmt.Errorf("failed to compute template hash: %v", err)
 	}
-	if bytes.Compare(computedTemplateHash, ng.TemplateHash) != 0 {
+	if !bytes.Equal(computedTemplateHash, ng.TemplateHash) {
 		return fmt.Errorf("template hash mismatch: got %x, want %x", ng.TemplateHash, computedTemplateHash)
 	}
 	return nil
@@ -227,11 +240,46 @@ func NewNgTarget(fileHashes, filePaths [][]byte) *NgTarget {
 	}
 }
 
-func (n NgTarget) CheckMatch(t templates.Template) (bool, error) {
-	panic("implement me")
+func (n *NgTarget) CheckMatch(t templates.Template) (bool, error) {
+	ngTmpl, ok := t.(*NgTemplate)
+	if !ok {
+		return false, fmt.Errorf("failed to parse Template into ima-ng template")
+	}
+	if n.IsFilePath(ngTmpl.FilePath) {
+		n.Add(attestation.Host, attestation.Measurement{
+			FilePath: ngTmpl.FileHashDigestToString(),
+			FileHash: ngTmpl.FileHashToString(),
+		})
+		return true, nil
+	}
+	if n.IsFileHash(ngTmpl.FileHash) {
+		n.Add(attestation.Host, attestation.Measurement{
+			FileHash: ngTmpl.FileHashDigestToString(),
+			FilePath: ngTmpl.FilePathToString(),
+		})
+		return true, nil
+	}
+	return false, nil
 }
 
-func (n NgTarget) GetMatches() attestation.Matches {
-	//TODO implement me
-	panic("implement me")
+func (n *NgTarget) GetMatches() attestation.Matches {
+	return n.Matches
+}
+
+func (n *NgTarget) IsFileHash(fileHash []byte) bool {
+	for _, hash := range n.fileHashes {
+		if bytes.Contains(fileHash, hash) {
+			return true
+		}
+	}
+	return false
+}
+
+func (n *NgTarget) IsFilePath(filePath []byte) bool {
+	for _, path := range n.FilePaths {
+		if bytes.Contains(filePath, path) {
+			return true
+		}
+	}
+	return false
 }
