@@ -2,12 +2,13 @@ package measurement
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"github.com/franc-zar/go-ima/pkg/utils"
 	"io"
 	"os"
 )
 
+// DefaultBinaryPath is the default path to the IMA binary measurement list.
 const DefaultBinaryPath = "/sys/kernel/security/integrity/ima/binary_runtime_measurements"
 
 type ListType uint8
@@ -17,21 +18,15 @@ const (
 	Raw
 )
 
-type FieldReader interface {
-	ReadLenValue() ([]byte, error)      // reads <len><value>, returns <value>
-	ReadLen() (uint32, error)           // reads an independent <len> field
-	ReadFixed(size int) ([]byte, error) // reads direct field
-}
-
 type List struct {
-	Type ListType      // complete path to measurement list file or raw content
-	Path string        // path to measurement list file
-	file *os.File      // file handle to measurement list file
-	Raw  *bytes.Reader // Raw content of measurement list
+	Type ListType      // Type of IMA measurement list: file or raw content
+	Path string        // path to IMA measurement list file
+	file *os.File      // file handle to IMA measurement list file
+	Raw  *bytes.Reader // Raw content of IMA measurement list
 	ptr  int64         // ptr contains the number of bytes processed i.e. index of next to read
 }
 
-func NewMeasurementListFromRaw(raw []byte, ptr int64) *List {
+func NewIMAListFromRaw(raw []byte, ptr int64) *List {
 	return &List{
 		Type: Raw,
 		Raw:  bytes.NewReader(raw),
@@ -39,221 +34,217 @@ func NewMeasurementListFromRaw(raw []byte, ptr int64) *List {
 	}
 }
 
-func NewMeasurementListFromFile(path string, ptr int64) *List {
+func NewIMAListFromFile(path string, ptr int64) (*List, error) {
 	if path == "" {
 		path = DefaultBinaryPath
 	}
-	return &List{
+
+	l := &List{
 		Type: File,
 		Path: path,
 		ptr:  ptr,
 	}
+	err := l.Open(ptr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create List from file: %w", err)
+	}
+
+	return l, nil
 }
 
-func (ml *List) ReadLenValue() ([]byte, error) {
-	fieldLen, err := ml.ReadLen()
+func (il *List) ReadLenValue() ([]byte, error) {
+	fieldLen, err := il.ReadLen()
 	if err != nil {
 		return nil, err
 	}
-	return ml.Read(int(fieldLen))
+	if fieldLen == 0 {
+		return []byte{}, nil
+	}
+	return il.Read(int(fieldLen))
 }
 
-func (ml *List) ReadLen() (uint32, error) {
-	lenField, err := ml.Read(utils.LenFieldSize)
+func (il *List) ReadLen() (uint32, error) {
+	lenField, err := il.Read(IMALenFieldSize)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read length field from IMA measurement list: %v", err)
+		return 0, fmt.Errorf("failed to read length field from IMA measurement list: %w", err)
 	}
-	fieldLen, err := utils.ParseFieldLen(lenField)
+	fieldLen, err := ParseFieldLen(lenField)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read length field from IMA measurement list: %v", err)
+		return 0, fmt.Errorf("failed to parse length field from IMA measurement list: %w", err)
 	}
 	return fieldLen, nil
 }
 
-func (ml *List) ReadFixed(size int) ([]byte, error) {
-	return ml.Read(size)
+func (il *List) ReadFixed(size int) ([]byte, error) {
+	return il.Read(size)
 }
 
-func (ml *List) IsRaw() bool {
-	return ml.Type == Raw
-}
-
-func (ml *List) IsFile() bool {
-	return ml.Type == File
-}
-
-func (ml *List) IsOpen() bool {
-	if !ml.IsFile() {
-		return false
-	}
-	return ml.file != nil
-}
-
-func (ml *List) IsReady() bool {
-	switch ml.Type {
+// Helper: get total size for both types.
+func (il *List) totalSize() (int64, error) {
+	switch il.Type {
 	case Raw:
-		return ml.Raw != nil
-
+		if il.Raw == nil {
+			return 0, errors.New("raw data not available")
+		}
+		return il.Raw.Size(), nil
 	case File:
-		return ml.IsOpen()
+		if il.file == nil {
+			return 0, errors.New("file is not open")
+		}
+		info, err := il.file.Stat()
+		if err != nil {
+			return 0, fmt.Errorf("stat error: %w", err)
+		}
+		return info.Size(), nil
+	default:
+		return 0, fmt.Errorf("unknown measurement list type: %v", il.Type)
+	}
+}
 
+func (il *List) IsReady() bool {
+	switch il.Type {
+	case Raw:
+		return il.Raw != nil
+	case File:
+		return il.file != nil
 	default:
 		return false
 	}
 }
 
-func (ml *List) Open(offset int64) error {
-	if !ml.IsFile() {
-		return fmt.Errorf("invalid IMA measurement list type: %v", ml.Type)
-	}
-
-	if ml.IsOpen() {
+func (il *List) Open(pos int64) error {
+	if il.Type != File {
 		return nil
 	}
 
-	f, err := os.Open(ml.Path)
-	if err != nil {
-		return fmt.Errorf("failed to open IMA measurement list: %v", err)
+	if il.file != nil {
+		return nil
 	}
 
-	_, err = f.Seek(offset, io.SeekStart)
+	f, err := os.Open(il.Path)
 	if err != nil {
-		return fmt.Errorf("failed to seek to offset in IMA measurement list: %v", err)
+		return fmt.Errorf("failed to open IMA measurement list: %w", err)
 	}
 
-	ml.file = f
-	ml.ptr = offset
+	if _, err = f.Seek(pos, io.SeekStart); err != nil {
+		cErr := f.Close()
+		if cErr != nil {
+			return fmt.Errorf("seek error: %w, close error: %w", err, cErr)
+		}
+		return fmt.Errorf("seek error: %w", err)
+	}
+
+	il.file = f
+	il.ptr = pos
 	return nil
 }
 
-func (ml *List) SetOffset(offset int64) error {
-	switch ml.Type {
+func (il *List) SetPosition(pos int64) error {
+	switch il.Type {
 	case Raw:
-		if ml.Raw == nil {
-			return fmt.Errorf("failed to read IMA measurement list: data not available")
+		if il.Raw == nil {
+			return errors.New("raw data not available")
 		}
-		_, err := ml.Raw.Seek(offset, io.SeekStart)
-		if err != nil {
-			return fmt.Errorf("failed to seek to offset in IMA measurement list: %v", err)
+		if _, err := il.Raw.Seek(pos, io.SeekStart); err != nil {
+			return fmt.Errorf("seek error: %w", err)
 		}
-		ml.ptr = offset
+		il.ptr = pos
 		return nil
-
 	case File:
-		if ml.file == nil {
-			return fmt.Errorf("failed to read IMA measurement list: file is not open")
+		if il.file == nil {
+			return errors.New("file is not open")
 		}
-
-		_, err := ml.file.Seek(offset, io.SeekStart)
-		if err != nil {
-			return fmt.Errorf("failed to seek in IMA measurement list: %v", err)
+		if _, err := il.file.Seek(pos, io.SeekStart); err != nil {
+			return fmt.Errorf("seek error: %w", err)
 		}
-		ml.ptr = offset
+		il.ptr = pos
 		return nil
-
 	default:
-		return fmt.Errorf("failed to set offset in IMA measurement list: unknown measurement list type: %v", ml.Type)
+		return fmt.Errorf("unknown measurement list type: %v", il.Type)
 	}
 }
 
-func (ml *List) Close() error {
-	if ml.Type == Raw {
+func (il *List) Close() error {
+	if il.Type == Raw || il.file == nil {
 		return nil
 	}
-
-	if ml.file == nil {
-		return nil
+	if err := il.file.Close(); err != nil {
+		return fmt.Errorf("close error: %w", err)
 	}
-
-	err := ml.file.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close IMA measurement list: %v", err)
-	}
-
-	ml.file = nil
+	il.file = nil
 	return nil
 }
 
-func (ml *List) ReadAll() ([]byte, error) {
-	switch ml.Type {
+func (il *List) ReadAll() ([]byte, error) {
+	switch il.Type {
 	case Raw:
-		buf, err := io.ReadAll(ml.Raw)
+		buf, err := io.ReadAll(il.Raw)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
+			return nil, fmt.Errorf("failed to read IMA measurement list: %w", err)
 		}
-		ml.ptr += int64(len(buf))
+		il.ptr += int64(len(buf))
 		return buf, nil
 
 	case File:
-		if ml.file == nil {
-			return nil, fmt.Errorf("failed to read IMA measurement list: file is not open")
+		if il.file == nil {
+			return nil, errors.New("failed to read IMA measurement list: file is not open")
 		}
 
-		buf, err := io.ReadAll(ml.file)
+		buf, err := io.ReadAll(il.file)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
+			return nil, fmt.Errorf("failed to read IMA measurement list: %w", err)
 		}
-		ml.ptr += int64(len(buf))
+		il.ptr += int64(len(buf))
 		return buf, nil
 
 	default:
-		return nil, fmt.Errorf("failed to read IMA measurement list: unknown measurement list type: %v", ml.Type)
+		return nil, fmt.Errorf("failed to read IMA measurement list: unknown measurement list type: %v", il.Type)
 	}
 }
 
-func (ml *List) HasContent() (bool, error) {
-	switch ml.Type {
-	case Raw:
-		return ml.ptr < ml.Raw.Size(), nil
-	case File:
-		if ml.file == nil {
-			return false, nil
-		}
-		info, err := ml.file.Stat()
-		if err != nil {
-			return false, fmt.Errorf("failed to stat IMA measurement list: %v", err)
-		}
-		return ml.ptr < info.Size(), nil
-	default:
-		return false, fmt.Errorf("invalid IMA measurement list type: %v", ml.Type)
+func (il *List) Remaining() (bool, error) {
+	size, err := il.totalSize()
+	if err != nil {
+		return false, err
 	}
+	return il.ptr < size, nil
 }
 
-func (ml *List) Read(n int) ([]byte, error) {
-	if n <= 0 {
+func (il *List) Read(n int) ([]byte, error) {
+	if n < 1 {
 		return nil, fmt.Errorf("failed to read IMA measurement list: cannot read %d bytes", n)
 	}
-	switch ml.Type {
+	switch il.Type {
 	case Raw:
-		if ml.Raw == nil {
-			return nil, fmt.Errorf("failed to read IMA measurement list: data not available")
+		if il.Raw == nil {
+			return nil, errors.New("failed to read IMA measurement list: data not available")
 		}
 		buf := make([]byte, n)
-		_, err := ml.Raw.Read(buf)
+		_, err := il.Raw.Read(buf)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
+			return nil, fmt.Errorf("failed to read IMA measurement list: %w", err)
 		}
-		ml.ptr += int64(n)
+		il.ptr += int64(n)
 		return buf, nil
 
 	case File:
-		if ml.file == nil {
-			return nil, fmt.Errorf("failed to read IMA measurement list: file is not open")
+		if il.file == nil {
+			return nil, errors.New("failed to read IMA measurement list: file is not open")
 		}
 
 		buf := make([]byte, n)
-		_, err := io.ReadAtLeast(ml.file, buf, n)
+		_, err := io.ReadFull(il.file, buf)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read IMA measurement list: %v", err)
+			return nil, fmt.Errorf("failed to read IMA measurement list: %w", err)
 		}
-		ml.ptr += int64(n)
+		il.ptr += int64(n)
 		return buf, nil
 
 	default:
-		return nil, fmt.Errorf("failed to read IMA measurement list: unknown measurement list type: %v", ml.Type)
+		return nil, fmt.Errorf("failed to read IMA measurement list: unknown measurement list type: %v", il.Type)
 	}
 }
 
-func (ml *List) GetPtr() int64 {
-	return ml.ptr
+func (il *List) GetPtr() int64 {
+	return il.ptr
 }
