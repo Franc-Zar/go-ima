@@ -2,6 +2,7 @@ package attestation
 
 import (
 	"crypto/subtle"
+	"errors"
 	"fmt"
 
 	"github.com/franc-zar/go-ima/pkg/crypto"
@@ -25,6 +26,7 @@ func NewAttester(
 	templateHashAlgo,
 	fileHashAlgo crypto.IMAHashAlgo,
 	attested int64,
+	aggregate []byte,
 ) (*Attester, error) {
 	if err := fields.IsPCRValid(pcrIndex); err != nil {
 		return nil, fmt.Errorf("invalid PCR index: %w", err)
@@ -38,32 +40,52 @@ func NewAttester(
 	if !fileHashAlgo.IsFileHashAlgo() {
 		return nil, fmt.Errorf("unsupported file hash algorithm: %v", fileHashAlgo)
 	}
+	if attested == 0 && aggregate != nil {
+		return nil, errors.New("invalid aggregate: must be nil when attested offset is 0")
+	}
+	if attested > 0 && aggregate == nil {
+		return nil, errors.New("invalid aggregate: must be non-nil when attested offset is greater than 0")
+	}
+	if aggregate != nil {
+		aggregateLen := len(aggregate)
+		if aggregateLen != templateHashAlgo.Size() {
+			return nil, fmt.Errorf("invalid aggregate length %d: expected %d bytes for hash algorithm %v",
+				aggregateLen, templateHashAlgo.Size(), templateHashAlgo)
+		}
+	} else {
+		aggregate = make([]byte, templateHashAlgo.Size())
+	}
 
 	return &Attester{
 		attested:         attested,
-		aggregate:        make([]byte, templateHashAlgo.Size()),
+		aggregate:        aggregate,
 		pcr:              pcrIndex,
 		templateHashAlgo: templateHashAlgo,
 		fileHashAlgo:     fileHashAlgo,
 	}, nil
 }
 
+// Attested returns the absolute byte offset attested so far.
 func (a *Attester) Attested() int64 {
 	return a.attested
 }
 
+// Aggregate returns the current PCR aggregate value.
 func (a *Attester) Aggregate() []byte {
 	return a.aggregate
 }
 
+// PCR returns the PCR index used for attestation replay.
 func (a *Attester) PCR() uint32 {
 	return a.pcr
 }
 
+// TemplateHashAlgo returns the hash algorithm used for template/PCR replay.
 func (a *Attester) TemplateHashAlgo() crypto.IMAHashAlgo {
 	return a.templateHashAlgo
 }
 
+// FileHashAlgo returns the hash algorithm expected for file digest fields.
 func (a *Attester) FileHashAlgo() crypto.IMAHashAlgo {
 	return a.fileHashAlgo
 }

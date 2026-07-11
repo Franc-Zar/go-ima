@@ -14,6 +14,7 @@ import (
 	"os"
 )
 
+// CertsFromPEMFile loads one or more X.509 certificates from a PEM file.
 func CertsFromPEMFile(pemFilePath string) ([]*x509.Certificate, error) {
 	pemData, err := os.ReadFile(pemFilePath)
 	if err != nil {
@@ -22,6 +23,7 @@ func CertsFromPEMFile(pemFilePath string) ([]*x509.Certificate, error) {
 	return CertsFromPEM(pemData)
 }
 
+// CertsFromPEM parses one or more X.509 certificates from PEM bytes.
 func CertsFromPEM(pemData []byte) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
 
@@ -53,7 +55,7 @@ func CertsFromPEM(pemData []byte) ([]*x509.Certificate, error) {
 
 // IMAKeyID computes the IMA key identifier from an X.509 certificate.
 // IMA keyid = last 4 bytes of SHA1(DER-encoded SubjectPublicKeyInfo),
-// interpreted as big-endian uint32.
+// interpreted as little-endian uint32.
 // This matches how evmctl and the kernel derive the keyid.
 func IMAKeyID(cert *x509.Certificate) (uint32, error) {
 	// use Subject Key Identifier if present — kernel prefers this
@@ -73,6 +75,7 @@ func IMAKeyID(cert *x509.Certificate) (uint32, error) {
 	return binary.LittleEndian.Uint32(h[16:20]), nil // last 4 bytes
 }
 
+// SigVerify verifies a signature against pre-hashed data using the public key.
 func SigVerify(pk crypto.PublicKey, hashAlgo IMAHashAlgo, data, sig []byte) error {
 	var err error
 	switch pk := pk.(type) {

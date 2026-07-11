@@ -1,5 +1,6 @@
 package measurement
 
+// FieldReader abstracts reading and seeking over parsed IMA field streams.
 type FieldReader interface {
 	// ReadLenValue reads a length-prefixed value <len><value> from the underlying data source and returns only the <value>.
 	ReadLenValue() ([]byte, error)

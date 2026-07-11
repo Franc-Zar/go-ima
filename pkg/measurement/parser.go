@@ -6,8 +6,10 @@ import (
 )
 
 const (
-	ColonByte = byte(58) // ASCII code for ":"
-	NullByte  = byte(0)
+	// ColonByte is the ':' separator used in encoded IMA field payloads.
+	ColonByte = byte(58)
+	// NullByte is the NUL terminator used by multiple IMA string fields.
+	NullByte = byte(0)
 	// IMALenFieldSize IMA length fields size in bytes (uint32).
 	IMALenFieldSize = 4
 	// IMAPcrFieldSize IMA PCR fields size in bytes (uint32).

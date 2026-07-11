@@ -72,6 +72,7 @@ type Digest struct {
 	digest   [DigestSize]byte
 }
 
+// NewDigest creates a Digest field parser for the legacy ima template.
 func NewDigest(hashAlgo crypto.IMAHashAlgo) (*Digest, error) {
 	if hashAlgo != crypto.MD5 && hashAlgo != crypto.SHA1 {
 		return nil, fmt.Errorf("invalid hash algorithm for Digest field: %v", hashAlgo)
@@ -81,18 +82,22 @@ func NewDigest(hashAlgo crypto.IMAHashAlgo) (*Digest, error) {
 	}, nil
 }
 
+// ID returns the IMA identifier for this field.
 func (d *Digest) ID() string {
 	return "d"
 }
 
+// Value returns the parsed digest bytes.
 func (d *Digest) Value() [DigestSize]byte {
 	return d.digest
 }
 
+// Pack serializes the field with its length prefix.
 func (d *Digest) Pack() ([]byte, error) {
 	return PackRaw(d.digest[:])
 }
 
+// Parse reads and validates the digest field from r.
 func (d *Digest) Parse(r measurement.FieldReader) error {
 	hashValue, err := r.ReadFixed(d.hashAlgo.Size())
 	if err != nil {
@@ -106,10 +111,12 @@ func (d *Digest) Parse(r measurement.FieldReader) error {
 	return nil
 }
 
+// Size returns the encoded field payload size in bytes.
 func (d *Digest) Size() int {
 	return len(d.digest)
 }
 
+// String returns the digest as a lowercase hexadecimal string.
 func (d *Digest) String() string {
 	if len(d.digest) == 0 {
 		return ""
@@ -117,6 +124,7 @@ func (d *Digest) String() string {
 	return fmt.Sprintf("%x", d.digest)
 }
 
+// Clear resets the parsed field value.
 func (d *Digest) Clear() {
 	for i := range d.digest {
 		d.digest[i] = 0
@@ -128,22 +136,27 @@ type Name struct {
 	name [NameSize]byte
 }
 
+// NewName creates a Name field parser for the legacy ima template.
 func NewName() *Name {
 	return &Name{}
 }
 
+// ID returns the IMA identifier for this field.
 func (n *Name) ID() string {
 	return "n"
 }
 
+// Value returns the parsed raw field bytes.
 func (n *Name) Value() [NameSize]byte {
 	return n.name
 }
 
+// Pack serializes the field with its length prefix.
 func (n *Name) Pack() ([]byte, error) {
 	return PackRaw(n.name[:])
 }
 
+// Parse reads and validates the legacy fixed-size name field from r.
 func (n *Name) Parse(r measurement.FieldReader) error {
 	name, err := r.ReadFixed(NameSize)
 	if err != nil {
@@ -161,10 +174,12 @@ func (n *Name) Parse(r measurement.FieldReader) error {
 	return nil
 }
 
+// Size returns the encoded field payload size in bytes.
 func (n *Name) Size() int {
 	return len(n.name)
 }
 
+// String returns the unpadded filename.
 func (n *Name) String() string {
 	if len(n.name) == 0 {
 		return ""
@@ -176,30 +191,37 @@ func (n *Name) String() string {
 	return string(n.name[:start])
 }
 
+// Clear resets the parsed field value.
 func (n *Name) Clear() {
 	n.name = [NameSize]byte{}
 }
 
+// NameNg represents the n-ng field used by modern IMA templates.
 type NameNg struct {
 	name []byte
 }
 
+// NewNameNg creates a NameNg field parser.
 func NewNameNg() *NameNg {
 	return &NameNg{}
 }
 
+// ID returns the IMA identifier for this field.
 func (n *NameNg) ID() string {
 	return "n-ng"
 }
 
+// Value returns the parsed raw field bytes.
 func (n *NameNg) Value() []byte {
 	return n.name
 }
 
+// Pack serializes the field with its length prefix.
 func (n *NameNg) Pack() ([]byte, error) {
 	return PackRaw(n.name)
 }
 
+// Parse reads and validates the n-ng field from r.
 func (n *NameNg) Parse(r measurement.FieldReader) error {
 	name, err := r.ReadLenValue()
 	if err != nil {
@@ -219,10 +241,12 @@ func (n *NameNg) Parse(r measurement.FieldReader) error {
 	return nil
 }
 
+// Size returns the encoded field size including its length prefix.
 func (n *NameNg) Size() int {
 	return measurement.IMALenFieldSize + len(n.name)
 }
 
+// String returns the decoded filename without the trailing NUL byte.
 func (n *NameNg) String() string {
 	if len(n.name) == 0 {
 		return ""
@@ -234,6 +258,7 @@ func (n *NameNg) String() string {
 	return string(n.name[:start])
 }
 
+// Clear resets the parsed field value.
 func (n *NameNg) Clear() {
 	n.name = nil
 }
@@ -246,6 +271,7 @@ type DigestNg struct {
 	digest   []byte
 }
 
+// NewDigestNg creates a DigestNg parser for the given file hash algorithm.
 func NewDigestNg(hashAlgo crypto.IMAHashAlgo) (*DigestNg, error) {
 	if !hashAlgo.IsFileHashAlgo() {
 		return nil, fmt.Errorf("invalid hash algorithm for DigestNg field: %v", hashAlgo)
@@ -256,18 +282,22 @@ func NewDigestNg(hashAlgo crypto.IMAHashAlgo) (*DigestNg, error) {
 	}, nil
 }
 
+// ID returns the IMA identifier for this field.
 func (d *DigestNg) ID() string {
 	return "d-ng"
 }
 
+// Value returns the parsed digest bytes.
 func (d *DigestNg) Value() []byte {
 	return d.digest
 }
 
+// Pack serializes the original parsed value with its length prefix.
 func (d *DigestNg) Pack() ([]byte, error) {
 	return PackRaw(d.rawValue)
 }
 
+// Parse reads and validates the d-ng field from r.
 func (d *DigestNg) Parse(r measurement.FieldReader) error {
 	parsed, err := r.ReadLenValue()
 	if err != nil {
@@ -284,10 +314,12 @@ func (d *DigestNg) Parse(r measurement.FieldReader) error {
 	return nil
 }
 
+// Size returns the encoded field size including its length prefix.
 func (d *DigestNg) Size() int {
 	return measurement.IMALenFieldSize + len(d.rawValue)
 }
 
+// String returns the field as "algo:digesthex".
 func (d *DigestNg) String() string {
 	if len(d.digest) == 0 {
 		return ""
@@ -296,22 +328,28 @@ func (d *DigestNg) String() string {
 	return fmt.Sprintf("%s:%x", d.hashAlgo.String(), d.digest)
 }
 
+// Clear resets the parsed field value.
 func (d *DigestNg) Clear() {
 	d.digest = nil
 	d.rawValue = nil
 }
 
+// DigestType identifies d-ngv2 digest namespaces.
 type DigestType string
 
 const (
-	Ima    DigestType = "ima"
+	// Ima identifies a regular IMA file digest namespace.
+	Ima DigestType = "ima"
+	// Verity identifies a fs-verity digest namespace.
 	Verity DigestType = "verity"
 )
 
+// String returns the string representation of dt.
 func (dt DigestType) String() string {
 	return string(dt)
 }
 
+// ValidateDigestType reports whether dt is supported.
 func ValidateDigestType(dt DigestType) bool {
 	switch dt {
 	case Ima, Verity:
@@ -321,6 +359,7 @@ func ValidateDigestType(dt DigestType) bool {
 	}
 }
 
+// DigestNgV2 represents the d-ngv2 field.
 type DigestNgV2 struct {
 	digestType DigestType
 	hashAlgo   crypto.IMAHashAlgo
@@ -328,6 +367,7 @@ type DigestNgV2 struct {
 	digest     []byte
 }
 
+// NewDigestNgV2 creates a DigestNgV2 parser for the given digest type and hash algorithm.
 func NewDigestNgV2(digestType DigestType, hashAlgo crypto.IMAHashAlgo) (*DigestNgV2, error) {
 	if !ValidateDigestType(digestType) {
 		return nil, fmt.Errorf("invalid digest type: %s", digestType)
@@ -342,18 +382,22 @@ func NewDigestNgV2(digestType DigestType, hashAlgo crypto.IMAHashAlgo) (*DigestN
 	}, nil
 }
 
+// ID returns the IMA identifier for this field.
 func (d *DigestNgV2) ID() string {
 	return "d-ngv2"
 }
 
+// Value returns the parsed digest bytes.
 func (d *DigestNgV2) Value() []byte {
 	return d.digest
 }
 
+// Pack serializes the original parsed value with its length prefix.
 func (d *DigestNgV2) Pack() ([]byte, error) {
 	return PackRaw(d.rawValue)
 }
 
+// Parse reads and validates the d-ngv2 field from r.
 func (d *DigestNgV2) Parse(r measurement.FieldReader) error {
 	parsed, err := r.ReadLenValue()
 	if err != nil {
@@ -369,10 +413,12 @@ func (d *DigestNgV2) Parse(r measurement.FieldReader) error {
 	return nil
 }
 
+// Size returns the encoded field size including its length prefix.
 func (d *DigestNgV2) Size() int {
 	return measurement.IMALenFieldSize + len(d.rawValue)
 }
 
+// String returns the field as "type:algo:digesthex".
 func (d *DigestNgV2) String() string {
 	if len(d.digest) == 0 {
 		return ""
@@ -381,11 +427,13 @@ func (d *DigestNgV2) String() string {
 	return fmt.Sprintf("%s:%s:%x", d.digestType, d.hashAlgo.String(), d.digest)
 }
 
+// Clear resets the parsed field value.
 func (d *DigestNgV2) Clear() {
 	d.digest = nil
 	d.rawValue = nil
 }
 
+// Sig represents the sig field used by ima-sig entries.
 type Sig struct {
 	rawValue []byte
 	version  uint8
@@ -394,30 +442,37 @@ type Sig struct {
 	sig      []byte
 }
 
+// NewSig creates an empty signature field parser.
 func NewSig() *Sig {
 	return &Sig{}
 }
 
+// ID returns the IMA identifier for this field.
 func (s *Sig) ID() string {
 	return "sig"
 }
 
+// Value returns the parsed signature bytes.
 func (s *Sig) Value() []byte {
 	return s.sig
 }
 
+// KeyID returns the signer key identifier from the signature header.
 func (s *Sig) KeyID() uint32 {
 	return s.keyID
 }
 
+// HashAlgo returns the hash algorithm encoded in the signature header.
 func (s *Sig) HashAlgo() crypto.IMAHashAlgo {
 	return s.hashAlgo
 }
 
+// Pack serializes the original parsed value with its length prefix.
 func (s *Sig) Pack() ([]byte, error) {
 	return PackRaw(s.rawValue)
 }
 
+// Parse reads and validates the sig field from r.
 func (s *Sig) Parse(r measurement.FieldReader) error {
 	parsed, err := r.ReadLenValue()
 	if err != nil {
@@ -436,6 +491,7 @@ func (s *Sig) Parse(r measurement.FieldReader) error {
 	return nil
 }
 
+// Size returns the encoded field size including its length prefix.
 func (s *Sig) Size() int {
 	size := measurement.IMALenFieldSize
 	sigLen := len(s.sig)
@@ -445,6 +501,7 @@ func (s *Sig) Size() int {
 	return size
 }
 
+// String returns the signature header as a compact hexadecimal string.
 func (s *Sig) String() string {
 	sigID, err := s.hashAlgo.ToIMASigHashID()
 	if err != nil {
@@ -459,6 +516,7 @@ func (s *Sig) String() string {
 	return fmt.Sprintf("%x%x%x%x%x", IMADigSigType, s.version, sigID, s.keyID, sigSize)
 }
 
+// Clear resets the parsed field value.
 func (s *Sig) Clear() {
 	s.keyID = 0
 	s.sig = nil

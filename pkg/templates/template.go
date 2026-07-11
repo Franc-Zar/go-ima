@@ -34,7 +34,7 @@ import (
 // | file Path Length (4 bytes) | -> length of the file path string, including the NULL terminator.
 // | file Path (variable size) | -> the actual path of the file being measured, including the NULL terminator.
 //
-// The BaseFields interface defines the common fields and parsing logic for all templates, while the SpecificFields
+// The BaseFields interface defines the common fields and parsing logic for all templates, while the ExtraFields
 // interface defines the contract for the template-specific fields.
 //
 // Each template (e.g., ima-ng, ima-sig) implements the Template interface by embedding BasicEntry for the base
@@ -125,6 +125,7 @@ func NewTemplate(
 	}, nil
 }
 
+// IsZeroEntry reports whether the parsed template hash is all zeros.
 func (t *Template) IsZeroEntry() bool {
 	templateHash := t.BasicEntry.TemplateHash()
 	for i := range templateHash {
@@ -246,7 +247,7 @@ func (b *BasicEntry) Clear() {
 // Parse reads the PCR, template hash, and template name fields from the provided FieldReader.
 // pcr is used to validate the PCR value in the entry; it should be set to the expected PCR index for the template.
 // templateName is used to validate the template name field in the entry; it should be set to the expected template name for the template.
-// ParseBase should be called by the template-specific ParseEntry method before parsing any template-specific fields.
+// Parse should be called by template parsers before processing template-specific fields.
 func (b *BasicEntry) Parse(r measurement.FieldReader, pcr uint32, hashSize int, templateName []byte) error {
 	if err := b.parsePCR(r, pcr); err != nil {
 		return fmt.Errorf("failed to parse PCR: %w", err)
