@@ -1,11 +1,12 @@
 # go-ima
 
-go-ima is a Go library to parse and verify Linux IMA binary measurement lists.
-It currently provides end-to-end attestation flows for `ima-ng` and `ima-sig` entries, including optional `ima-sig` signature verification against trusted X.509 certificates.
-
 [![Go Reference](https://pkg.go.dev/badge/github.com/franc-zar/go-ima.svg)](https://pkg.go.dev/github.com/franc-zar/go-ima)
 [![Go Report Card](https://goreportcard.com/badge/github.com/franc-zar/go-ima)](https://goreportcard.com/report/github.com/franc-zar/go-ima)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
+
+**go-ima** is a Go library to parse and verify **Linux Integrity Measurement Architecture (IMA)** binary measurement lists.
+It currently provides end-to-end attestation flows for `ima-ng` and `ima-sig` entries, including optional `ima-sig` signature verification against trusted X.509 certificates.
+
 
 ## What It Does
 
@@ -176,6 +177,7 @@ tests/
 
 ## Notes
 
+- The expected aggregate digest used for event replay verification must be obtained from a trusted source (for example, a TPM quote) and verified before being used. The library does not establish trust in the expected digest itself.
 - The verifier intentionally loops until aggregate match or list exhaustion to handle quote/list timing skew.
 
 ## Documentation
