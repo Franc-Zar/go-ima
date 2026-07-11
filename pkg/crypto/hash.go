@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	// UnsupportedHashAlgoString is returned by String for unknown hash algorithms.
 	UnsupportedHashAlgoString = "unsupported IMA hash algorithm"
 	md5Str                    = "md5"
 	sha1Str                   = "sha1"
@@ -21,22 +22,24 @@ const (
 	sha224Str                 = "sha224"
 )
 
-// Supported hash algorithms according to IMA Linux documentation:
-// https://www.kernel.org/doc/html/latest/security/IMA-templates.html
-// File hash: md5, sha1, sha224, sha256, sha384, sha512, ripemd160
-// PCR hash: sha1, sha256, sha384, sha512
-// Template hash: md5, sha1, sha256, sha384, sha512
-
+// IMAHashAlgo identifies hash algorithms supported by IMA helpers.
 type IMAHashAlgo uint
 
 const (
+	// Unsupported indicates an unknown or unsupported hash algorithm.
 	Unsupported IMAHashAlgo = 0
-	MD5         IMAHashAlgo = IMAHashAlgo(crypto.MD5)
-	SHA1        IMAHashAlgo = IMAHashAlgo(crypto.SHA1)
-	SHA224      IMAHashAlgo = IMAHashAlgo(crypto.SHA224)
-	SHA256      IMAHashAlgo = IMAHashAlgo(crypto.SHA256)
-	SHA384      IMAHashAlgo = IMAHashAlgo(crypto.SHA384)
-	SHA512      IMAHashAlgo = IMAHashAlgo(crypto.SHA512)
+	// MD5 identifies the md5 hash algorithm.
+	MD5 IMAHashAlgo = IMAHashAlgo(crypto.MD5)
+	// SHA1 identifies the sha1 hash algorithm.
+	SHA1 IMAHashAlgo = IMAHashAlgo(crypto.SHA1)
+	// SHA224 identifies the sha224 hash algorithm.
+	SHA224 IMAHashAlgo = IMAHashAlgo(crypto.SHA224)
+	// SHA256 identifies the sha256 hash algorithm.
+	SHA256 IMAHashAlgo = IMAHashAlgo(crypto.SHA256)
+	// SHA384 identifies the sha384 hash algorithm.
+	SHA384 IMAHashAlgo = IMAHashAlgo(crypto.SHA384)
+	// SHA512 identifies the sha512 hash algorithm.
+	SHA512 IMAHashAlgo = IMAHashAlgo(crypto.SHA512)
 )
 
 // imaFileHashNames maps every IMA kernel name (as written in the d-ng field
@@ -191,6 +194,7 @@ func (a IMAHashAlgo) IsTemplateHashAlgo() bool {
 	return ok
 }
 
+// IsSigAlgo reports whether a is valid in IMA signature headers.
 func (a IMAHashAlgo) IsSigAlgo() bool {
 	_, ok := imaSigHashNames[a.String()]
 	return ok
@@ -223,6 +227,7 @@ func (a IMAHashAlgo) Extend(aggregate, templateHash []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
+// Write hashes data with the selected algorithm and returns the digest.
 func (a IMAHashAlgo) Write(data []byte) ([]byte, error) {
 	cryptoHash := a.ToCryptoHash()
 	if cryptoHash == 0 {

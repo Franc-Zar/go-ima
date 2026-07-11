@@ -11,13 +11,17 @@ import (
 // DefaultBinaryPath is the default path to the IMA binary measurement list.
 const DefaultBinaryPath = "/sys/kernel/security/integrity/ima/binary_runtime_measurements"
 
+// ListType identifies the source backing an IMA measurement list reader.
 type ListType uint8
 
 const (
+	// File indicates a file-backed measurement list source.
 	File ListType = iota
+	// Raw indicates an in-memory byte-backed measurement list source.
 	Raw
 )
 
+// List provides sequential reads over an IMA measurement list.
 type List struct {
 	Type ListType      // Type of IMA measurement list: file or raw content
 	Path string        // path to IMA measurement list file
@@ -26,6 +30,7 @@ type List struct {
 	ptr  int64         // ptr contains the number of bytes processed i.e. index of next to read
 }
 
+// NewIMAListFromRaw creates a List from raw measurement list bytes.
 func NewIMAListFromRaw(raw []byte, ptr int64) *List {
 	return &List{
 		Type: Raw,
@@ -34,6 +39,7 @@ func NewIMAListFromRaw(raw []byte, ptr int64) *List {
 	}
 }
 
+// NewIMAListFromFile creates a file-backed List and opens it at ptr.
 func NewIMAListFromFile(path string, ptr int64) (*List, error) {
 	if path == "" {
 		path = DefaultBinaryPath
@@ -52,6 +58,7 @@ func NewIMAListFromFile(path string, ptr int64) (*List, error) {
 	return l, nil
 }
 
+// ReadLenValue reads a <len><value> field and returns only the value bytes.
 func (il *List) ReadLenValue() ([]byte, error) {
 	fieldLen, err := il.ReadLen()
 	if err != nil {
@@ -63,6 +70,7 @@ func (il *List) ReadLenValue() ([]byte, error) {
 	return il.Read(int(fieldLen))
 }
 
+// ReadLen reads and parses a 4-byte little-endian length field.
 func (il *List) ReadLen() (uint32, error) {
 	lenField, err := il.Read(IMALenFieldSize)
 	if err != nil {
@@ -75,6 +83,7 @@ func (il *List) ReadLen() (uint32, error) {
 	return fieldLen, nil
 }
 
+// ReadFixed reads exactly size bytes from the current reader position.
 func (il *List) ReadFixed(size int) ([]byte, error) {
 	return il.Read(size)
 }
@@ -101,6 +110,7 @@ func (il *List) totalSize() (int64, error) {
 	}
 }
 
+// IsReady reports whether the underlying source is initialized and readable.
 func (il *List) IsReady() bool {
 	switch il.Type {
 	case Raw:
@@ -112,6 +122,8 @@ func (il *List) IsReady() bool {
 	}
 }
 
+// Open opens the file-backed source and seeks to pos.
+// For raw sources, Open is a no-op.
 func (il *List) Open(pos int64) error {
 	if il.Type != File {
 		return nil
@@ -139,6 +151,7 @@ func (il *List) Open(pos int64) error {
 	return nil
 }
 
+// SetPosition moves the current read position to pos.
 func (il *List) SetPosition(pos int64) error {
 	switch il.Type {
 	case Raw:
@@ -164,6 +177,8 @@ func (il *List) SetPosition(pos int64) error {
 	}
 }
 
+// Close closes the file-backed source.
+// For raw sources, Close is a no-op.
 func (il *List) Close() error {
 	if il.Type == Raw || il.file == nil {
 		return nil
@@ -175,6 +190,7 @@ func (il *List) Close() error {
 	return nil
 }
 
+// ReadAll reads remaining bytes from the current position.
 func (il *List) ReadAll() ([]byte, error) {
 	switch il.Type {
 	case Raw:
@@ -202,6 +218,7 @@ func (il *List) ReadAll() ([]byte, error) {
 	}
 }
 
+// Remaining reports whether unread content is available.
 func (il *List) Remaining() (bool, error) {
 	size, err := il.totalSize()
 	if err != nil {
@@ -210,6 +227,7 @@ func (il *List) Remaining() (bool, error) {
 	return il.ptr < size, nil
 }
 
+// Read reads n bytes and advances the current read position.
 func (il *List) Read(n int) ([]byte, error) {
 	if n < 1 {
 		return nil, fmt.Errorf("failed to read IMA measurement list: cannot read %d bytes", n)
@@ -245,6 +263,7 @@ func (il *List) Read(n int) ([]byte, error) {
 	}
 }
 
+// GetPtr returns the current absolute read offset.
 func (il *List) GetPtr() int64 {
 	return il.ptr
 }

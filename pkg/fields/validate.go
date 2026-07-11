@@ -61,7 +61,7 @@ func PackRaw(b []byte) ([]byte, error) {
 // ValidatePadding checks that all bytes in the provided buffer after the first
 // occurrence of the specified padding byte are equal to the padding byte.
 // It returns the start index of the padding (which is the unpadded buffer content length)
-// and a boolean indicating whether the padding is valid.
+// and an error if the padding is invalid.
 func ValidatePadding(buf []byte, padding byte) (int, error) {
 	padStart := -1
 	for i := range buf {
@@ -82,6 +82,7 @@ func ValidatePadding(buf []byte, padding byte) (int, error) {
 	return padStart, nil
 }
 
+// IsPCRValid validates that pcrIndex is within the supported TPM PCR range.
 func IsPCRValid(pcrIndex uint32) error {
 	if pcrIndex < MinPCRIndex || pcrIndex > MaxPCRIndex {
 		return fmt.Errorf("PCR index must be between %d and %d", MinPCRIndex, MaxPCRIndex)
@@ -89,6 +90,7 @@ func IsPCRValid(pcrIndex uint32) error {
 	return nil
 }
 
+// ValidateFileHash validates and extracts the digest from a d-ng field payload.
 func ValidateFileHash(fileHash []byte, hashAlgo crypto.IMAHashAlgo) ([]byte, error) {
 	// fileHash structure is <algoDescriptor>:<NULL_BYTE><digest>
 	if !hashAlgo.IsFileHashAlgo() {
@@ -117,6 +119,7 @@ func ValidateFileHash(fileHash []byte, hashAlgo crypto.IMAHashAlgo) ([]byte, err
 	return digest, nil
 }
 
+// ValidateFileHashV2 validates and extracts the digest from a d-ngv2 field payload.
 func ValidateFileHashV2(fileHash []byte, hashAlgo crypto.IMAHashAlgo, digestType DigestType) ([]byte, error) {
 	// fileHash structure is <digestType>:<algoDescriptor>:<NULL_BYTE><digest>
 	if !hashAlgo.IsFileHashAlgo() {
@@ -148,6 +151,7 @@ func ValidateFileHashV2(fileHash []byte, hashAlgo crypto.IMAHashAlgo, digestType
 	return digest, nil
 }
 
+// IsSigVersionValid validates that version is a supported IMA signature version.
 func IsSigVersionValid(version uint8) error {
 	if version != SigV2 && version != SigV3 {
 		return fmt.Errorf("invalid signature header: unsupported version, got 0x%02x, want 0x02 or 0x03", version)

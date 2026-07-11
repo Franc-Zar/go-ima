@@ -10,12 +10,12 @@ import (
 
 // NewNgTemplate creates a new ima-ng template with the provided configuration parameters.
 // It initializes the template's extra fields (file hash and file path) based on the provided file hash algorithm.
-func NewNgTemplate(templateHashAlgo, fileHashAlgo crypto.IMAHashAlgo, reservedPcr uint32) (*Template, error) {
+func NewNgTemplate(templateHashAlgo, fileHashAlgo crypto.IMAHashAlgo, pcr uint32) (*Template, error) {
 	ngExtra, err := newNgExtra(fileHashAlgo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ng extra fields: %w", err)
 	}
-	ng, err := NewTemplate(reservedPcr, []byte("ima-ng"), templateHashAlgo, fileHashAlgo, ngExtra)
+	ng, err := NewTemplate(pcr, []byte("ima-ng"), templateHashAlgo, fileHashAlgo, ngExtra)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create base Template: %w", err)
 	}

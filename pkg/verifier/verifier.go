@@ -42,16 +42,6 @@ func (v *Verifier) Attester() *attestation.Attester {
 	return v.attester
 }
 
-// SetAttestationPosition seeks the measurement list to the last successfully
-// attested byte position recorded in the attester.
-func (v *Verifier) SetAttestationPosition() error {
-	err := v.measurementList.SetPosition(v.attester.Attested())
-	if err != nil {
-		return fmt.Errorf("failed to seek measurement list to attested position: %w", err)
-	}
-	return nil
-}
-
 // MeasurementListAttestation replays the measurement list from the current
 // attested position, extending the PCR aggregate entry by entry, until the
 // aggregate matches expected or the list is exhausted.
@@ -69,6 +59,10 @@ func (v *Verifier) MeasurementListAttestation(expected []byte) error {
 
 	if !v.measurementList.IsReady() {
 		return errors.New("measurement list is not ready (not opened or no data)")
+	}
+
+	if err := v.measurementList.SetPosition(v.attester.Attested()); err != nil {
+		return fmt.Errorf("failed to set measurement list position: %w", err)
 	}
 
 	for {
